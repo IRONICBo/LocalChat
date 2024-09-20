@@ -55,12 +55,6 @@ go build .
 # ./ollama run qwen:1.8b # mem usage: 1.56GB
 ```
 
-throughput: 1.7mb/s
-mem usage: 880.8MB
-docker gpu mac支持
-是否docker是否可以用加速
-固定版本，同步的数据信息
-
 > Ref: https://github.com/ollama/ollama/blob/main/docs/development.md
 
 ### start frontend
