@@ -39,8 +39,9 @@ def get_memory_usage():
     return mem_info.rss / (1024 * 1024)  # 将内存占用量转换为MB
 
 # ChatGPT模型功能
-def chatgpt_clone(input, history, model):
+def chatgpt_clone(input, history, model, table_history):
     history = history or []
+    table_history = table_history or []  # 初始化表格历史数据
     s = list(sum(history, ()))
     s.append(input)
     inp = ' '.join(s)
@@ -51,17 +52,19 @@ def chatgpt_clone(input, history, model):
     # 获取当前内存占用
     memory_usage = get_memory_usage()
 
+    # 计算tokens/s
+    tokens_per_second = total_tokens / response_time if response_time > 0 else 0
+
     # 更新聊天记录
     history.append((input, output))
 
-    # 生成Markdown表格
-    table_md = f"""
-    | prompt_tokens | completion_tokens | total_tokens | response_time (s) | memory_usage (MB) |
-    |---------------|-------------------|--------------|-------------------|------------------|
-    | {prompt_tokens}        | {completion_tokens}            | {total_tokens}       | {round(response_time, 3)}             | {round(memory_usage, 2)} MB        |
-    """
+    # 生成新的DataFrame数据
+    new_data = [prompt_tokens, completion_tokens, total_tokens, round(response_time, 3), round(memory_usage, 2), round(tokens_per_second, 2)]
 
-    return history, history, table_md
+    # 将新数据append到表格历史中
+    table_history.append(new_data)
+
+    return history, history, table_history
 
 # Gradio界面设计
 block = gr.Blocks()
@@ -72,8 +75,8 @@ with block:
     with gr.Row():
         # 聊天框
         chatbot = gr.Chatbot(label="Chatbot")
-        # 表格，使用Markdown显示
-        table = gr.Markdown()
+        # 表格，显示token和速度
+        table = gr.DataFrame(headers=["prompt_tokens", "completion_tokens", "total_tokens", "response_time (s)", "memory_usage (MB)", "tokens/s"], datatype=["number"]*6)
 
     # 输入框，提示用户输入内容
     message = gr.Textbox(placeholder="Ask anything to the AI assistant...", label="Your Prompt")
@@ -83,11 +86,13 @@ with block:
 
     # 状态保存聊天记录
     state = gr.State()
+    # 状态保存表格历史
+    table_state = gr.State([])  # 初始化为空列表，保存表格历史数据
 
     # 发送按钮
     submit = gr.Button("SEND")
 
     # 点击按钮后调用 chatgpt_clone 函数
-    submit.click(chatgpt_clone, inputs=[message, state, model_choice], outputs=[chatbot, state, table])
+    submit.click(chatgpt_clone, inputs=[message, state, model_choice, table_state], outputs=[chatbot, state, table])
 
 block.launch(debug=True)
