@@ -1,12 +1,13 @@
 services:
-  app:
-    container_name: gradio
-    build: .
+  localchat_app:
+    container_name: localchat_app
+    # build: .
+    image: localchat_app:latest
     ports:
       - 7860:7860
-    volumes:
+    # volumes:
       # Mount the localchat directory to the container, so that the changes in the localchat directory are reflected in the container
-      - .:/localchat
+      # - .:/localchat
     networks:
       - local_network
 

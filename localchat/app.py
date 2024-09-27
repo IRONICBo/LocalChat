@@ -108,3 +108,13 @@ with block:
 
     # Initialize a state object to store the conversation history
     state = gr.State()  # This state keeps track of the
+
+    submit_button = gr.Button("Submit")
+    submit_button.click(
+        chatgpt_clone,  # Function to call on click
+        inputs=[message, state, model_choice, state],  # Inputs to the function
+        outputs=[chatbot, state, table, table]  # Outputs to update
+    )
+
+    # Launch the Gradio interface
+    block.launch()

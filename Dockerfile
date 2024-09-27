@@ -5,4 +5,4 @@ RUN pip install .
 
 EXPOSE 7860
 
-CMD ["python", "main.py"]
+CMD ["python", "-m", "localchat"]
