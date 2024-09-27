@@ -1,0 +1,25 @@
+services:
+  app:
+    container_name: gradio
+    build: .
+    ports:
+      - 7860:7860
+    volumes:
+      # Mount the localchat directory to the container, so that the changes in the localchat directory are reflected in the container
+      - .:/localchat
+    networks:
+      - local_network
+
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    ports:
+      - 11434:11434
+    volumes:
+      - ./data/ollama:/root/.ollama
+    networks:
+      - local_network
+
+networks:
+  local_network:
+    driver: bridge
