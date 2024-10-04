@@ -1,5 +1,6 @@
 openai
 gradio
 socksio
+docker
 httpx[socks]
 psutil==6.0.0
