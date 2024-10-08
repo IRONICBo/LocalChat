@@ -42,16 +42,14 @@ def update_usage_data():
             {"time": [current_time], "cpu_usage": [cpu_usage], "mem_usage": [mem_usage]}
         )
 
-        if not new_row.empty:
+        if not new_row.empty and not new_row.isna().all().all():
             usage_data = pd.concat([usage_data, new_row], ignore_index=True)
         if len(usage_data) > 200:
             usage_data = usage_data.iloc[-200:]
 
-        time.sleep(0.5)
-
+        time.sleep(1)
 
 threading.Thread(target=update_usage_data, daemon=True).start()
-
 
 def get_latest_usage_data():
     global usage_data
@@ -63,6 +61,8 @@ def get_latest_usage_data():
     else:
         cpu_usage_data = usage_data[["time", "cpu_usage"]]
         mem_usage_data = usage_data[["time", "mem_usage"]]
+        print("cpu_usage_data", cpu_usage_data)
+        print("mem_usage_data", mem_usage_data)
         return cpu_usage_data, mem_usage_data
 
 
@@ -73,9 +73,11 @@ with gr.Blocks() as app:
     cpu_usage_plot = gr.LinePlot(
         value=usage_data[["time", "cpu_usage"]],
         x="time",
-        y="cpu_usage/%",
+        y="cpu_usage",
         title="Real-time CPU Usage",
         label="CPU Usage Over Time",
+        x_title="Time/s",
+        y_title="CPU/%",
         height=300,
     )
 
@@ -83,16 +85,19 @@ with gr.Blocks() as app:
     mem_usage_plot = gr.LinePlot(
         value=usage_data[["time", "mem_usage"]],
         x="time",
-        y="mem_usage/GB",
+        y="mem_usage",
         title="Real-time Memory Usage",
         label="Memory Usage Over Time",
+        x_title="Time/s",
+        y_title="Memory/GB",
         height=300,
     )
 
     # Refresh the usage data every 0.5 seconds
-    timer = gr.Timer(0.5)
+    timer = gr.Timer(1)
     timer.tick(fn=get_latest_usage_data, outputs=[cpu_usage_plot, mem_usage_plot])
 
 
 if __name__ == "__main__":
+    app.queue()
     app.launch()
