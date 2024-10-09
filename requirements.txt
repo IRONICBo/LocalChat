@@ -2,5 +2,7 @@ openai
 gradio
 socksio
 docker
+sqlalchemy
+sqlite3
 httpx[socks]
 psutil==6.0.0
