@@ -1,8 +1,15 @@
 import os
+import sys
+import time
 
 import gradio as gr
 from openai import OpenAI
 
+from localchat import logger
+from models import SessionLocal, ChatbotUsage
+
+log = logger.Logger("localchat.log")
+sys.stdout = log
 
 def add_message(history, message):
     for x in message["files"]:
@@ -12,7 +19,7 @@ def add_message(history, message):
     return history, gr.MultimodalTextbox(value=None, interactive=False)
 
 
-def bot(history):
+def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
     history[-1][1] = ""
 
     history_openai_format = []
@@ -26,17 +33,60 @@ def bot(history):
         base_url="http://localhost:11434/v1",
     )
     completion = client.chat.completions.create(
-        model="qwen:0.5b",
+        model=model,
         messages=history_openai_format,
-        temperature=0.1,
+        temperature=temperature,
+        max_tokens=max_tokens,
         stream=True,
     )
+
+    start_time = time.time()
+
     for chunk in completion:
         history[-1][1] += chunk.choices[0].delta.content
         yield history
 
+    end_time = time.time()
+    response_time = end_time - start_time
 
-with gr.Blocks() as demo:
+    # Calculate token count and tokens per second
+    completion_without_stream = client.chat.completions.create(
+        model=model,
+        messages=history_openai_format,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stream=False,
+    )
+
+    total_token_count = completion_without_stream.usage.total_tokens
+    completion_tokens_count = completion_without_stream.usage.completion_tokens
+    prompt_tokens_count = completion_without_stream.usage.total_tokens
+
+    print(f"Response time: {response_time:.2f}s")
+
+    db = SessionLocal()
+    try:
+        usage_record = ChatbotUsage(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            total_token_count=total_token_count,
+            completion_tokens_count=completion_tokens_count,
+            prompt_tokens_count=prompt_tokens_count,
+            response_time=response_time,
+        )
+        db.add(usage_record)
+        db.commit()
+    except Exception as e:
+        print(f"Failed to insert data into database: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+with gr.Blocks() as main_block:
+    gr.Markdown("<h1><center>Build Your Own Chatbot with Local LLM Model</center></h1>")
+
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
 
     chat_input = gr.MultimodalTextbox(
@@ -52,5 +102,18 @@ with gr.Blocks() as demo:
     bot_msg = chat_msg.then(bot, chatbot, chatbot, api_name="bot_response")
     bot_msg.then(lambda: gr.MultimodalTextbox(interactive=True), None, [chat_input])
 
-demo.queue()
-demo.launch()
+    table = gr.DataFrame(
+        headers=[
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "response_time (s)",
+            "memory_usage (MB)",
+            "tokens/s",
+        ],
+        datatype=["number"] * 6,
+    )
+
+
+main_block.queue()
+main_block.launch()
