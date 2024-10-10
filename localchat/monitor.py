@@ -134,8 +134,9 @@ with gr.Blocks() as app:
 
     # History of model token usage
     with gr.Row():
+        # TODO: Support multiple models
         model_name_input = gr.Dropdown(
-            choices=["qwen:0.5b", "gpt-3.5", "other_model"],
+            choices=["qwen:0.5b"],
             label="Select Model Name",
             value="qwen:0.5b",
         )
