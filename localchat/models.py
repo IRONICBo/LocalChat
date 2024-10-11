@@ -8,6 +8,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+
 # Define the database model for storing chatbot usage statistics
 class ChatbotUsage(Base):
     __tablename__ = "chatbot_usage"
@@ -20,5 +21,6 @@ class ChatbotUsage(Base):
     completion_tokens_count = Column(Integer)
     prompt_tokens_count = Column(Integer)
     response_time = Column(Float)
+
 
 Base.metadata.create_all(bind=engine)

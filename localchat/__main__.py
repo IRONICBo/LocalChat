@@ -5,11 +5,12 @@ import time
 import gradio as gr
 from openai import OpenAI
 
-from localchat import logger
+import logger
 from models import SessionLocal, ChatbotUsage
 
 log = logger.Logger("localchat.log")
 sys.stdout = log
+
 
 def add_message(history, message):
     for x in message["files"]:
@@ -44,7 +45,7 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
 
     for chunk in completion:
         history[-1][1] += chunk.choices[0].delta.content
-        yield history
+        yield history, [[0, 0, 0, 0, 0]]
 
     end_time = time.time()
     response_time = end_time - start_time
@@ -59,8 +60,8 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
     )
 
     total_token_count = completion_without_stream.usage.total_tokens
+    prompt_tokens_count = completion_without_stream.usage.prompt_tokens
     completion_tokens_count = completion_without_stream.usage.completion_tokens
-    prompt_tokens_count = completion_without_stream.usage.total_tokens
 
     print(f"Response time: {response_time:.2f}s")
 
@@ -83,6 +84,17 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
     finally:
         db.close()
 
+    # TODO: Current state is not valid in multi chat
+    yield history, [
+        [
+            prompt_tokens_count,
+            completion_tokens_count,
+            total_token_count,
+            response_time,
+            total_token_count / response_time,
+        ]
+    ]
+
 
 with gr.Blocks() as main_block:
     gr.Markdown("<h1><center>Build Your Own Chatbot with Local LLM Model</center></h1>")
@@ -95,24 +107,54 @@ with gr.Blocks() as main_block:
         placeholder="Enter message or upload file...",
         show_label=False,
     )
+    with gr.Row():
+        # TODO: Query from installed models
+        model_choice = gr.Dropdown(
+            choices=["qwen:0.5b", "qwen:1.8b", "qwen:4b"],
+            value="qwen:0.5b",
+            label="Choose Model",
+        )
 
-    chat_msg = chat_input.submit(
-        add_message, [chatbot, chat_input], [chatbot, chat_input]
-    )
-    bot_msg = chat_msg.then(bot, chatbot, chatbot, api_name="bot_response")
-    bot_msg.then(lambda: gr.MultimodalTextbox(interactive=True), None, [chat_input])
+        # Temperature slider
+        temperature = gr.Slider(
+            value=0.1,
+            minimum=0.0,
+            maximum=1.0,
+            step=0.01,
+            label="Temperature",
+        )
 
+        # Max tokens slider
+        max_tokens = gr.Slider(
+            value=1024,
+            minimum=32,
+            maximum=4096,
+            step=32,
+            label="Max Tokens",
+        )
+
+    # Create a DataFrame (table) to display token and performance data
     table = gr.DataFrame(
         headers=[
             "prompt_tokens",
             "completion_tokens",
             "total_tokens",
             "response_time (s)",
-            "memory_usage (MB)",
             "tokens/s",
         ],
-        datatype=["number"] * 6,
+        datatype=["number"] * 5,
     )
+
+    chat_msg = chat_input.submit(
+        add_message, [chatbot, chat_input], [chatbot, chat_input]
+    )
+    bot_msg = chat_msg.then(
+        bot,
+        [chatbot, model_choice, temperature, max_tokens],
+        [chatbot, table],
+        api_name="bot_response",
+    )
+    bot_msg.then(lambda: gr.MultimodalTextbox(interactive=True), None, [chat_input])
 
 
 main_block.queue()
