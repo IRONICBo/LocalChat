@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, Float, String
+from sqlalchemy import DateTime, create_engine, Column, Integer, Float, String, TIMESTAMP, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -21,6 +21,6 @@ class ChatbotUsage(Base):
     completion_tokens_count = Column(Integer)
     prompt_tokens_count = Column(Integer)
     response_time = Column(Float)
-
+    created_at = Column(DateTime, default=func.now())
 
 Base.metadata.create_all(bind=engine)
