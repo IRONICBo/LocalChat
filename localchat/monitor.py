@@ -103,7 +103,7 @@ def get_latest_usage_data():
         return cpu_usage_data, mem_usage_data
 
 
-with gr.Blocks() as app:
+def monitor_tab():
     gr.Markdown("## Real-time LLM Serving System Monitoring")
 
     # Create a line plot to show real-time CPU usage
@@ -171,5 +171,12 @@ with gr.Blocks() as app:
 
 
 if __name__ == "__main__":
-    app.queue()
-    app.launch()
+    with gr.Blocks() as main_block:
+        gr.Markdown("<h1><center>LocalChat Model Manager</center></h1>")
+
+        with gr.Tabs():
+            with gr.Tab(label="Manager"):
+                monitor_tab()
+
+    main_block.queue()
+    main_block.launch()

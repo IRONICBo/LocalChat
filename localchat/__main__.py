@@ -5,6 +5,8 @@ import time
 import gradio as gr
 from openai import OpenAI
 
+from monitor import monitor_tab
+from manager import manager_tab
 import logger
 from models import SessionLocal, ChatbotUsage
 
@@ -95,10 +97,7 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
         ]
     ]
 
-
-with gr.Blocks() as main_block:
-    gr.Markdown("<h1><center>Build Your Own Chatbot with Local LLM Model</center></h1>")
-
+def chat_tab():
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
 
     chat_input = gr.MultimodalTextbox(
@@ -156,6 +155,19 @@ with gr.Blocks() as main_block:
     )
     bot_msg.then(lambda: gr.MultimodalTextbox(interactive=True), None, [chat_input])
 
+
+with gr.Blocks() as main_block:
+    gr.Markdown("<h1><center>Build Your Own Chatbot with Local LLM Model</center></h1>")
+
+    with gr.Tabs():
+        with gr.Tab(label="Chat"):
+            chat_tab()
+
+        with gr.Tab(label="Manager"):
+            manager_tab()
+
+        with gr.Tab(label="Monitor"):
+            monitor_tab()
 
 main_block.queue()
 main_block.launch()

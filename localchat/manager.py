@@ -46,7 +46,7 @@ def fetch_model_list(page_number, page_size):
         print(f"Error fetching model list: {e}")
         return pd.DataFrame()
 
-with gr.Blocks() as app:
+def manager_tab():
     gr.Markdown("## Model List")
 
     page_number_input = gr.Number(label="Page Number", value=1, precision=0)
@@ -75,4 +75,12 @@ with gr.Blocks() as app:
     )
 
 if __name__ == "__main__":
-    app.launch()
+    with gr.Blocks() as main_block:
+        gr.Markdown("<h1><center>LocalChat Model Manager</center></h1>")
+
+        with gr.Tabs():
+            with gr.Tab(label="Manager"):
+                manager_tab()
+
+    main_block.queue()
+    main_block.launch()
