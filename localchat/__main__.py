@@ -97,6 +97,7 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
         ]
     ]
 
+
 def chat_tab():
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
 

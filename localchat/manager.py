@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import gradio as gr
 
+
 def fetch_model_list(page_number, page_size):
     """
     Fetch model list from the API and return a paginated DataFrame.
@@ -29,9 +30,14 @@ def fetch_model_list(page_number, page_size):
             "Model": [model.get("model", "") for model in models],
             "Size (bytes)": [model.get("size", 0) for model in models],
             "Digest": [model.get("digest", "") for model in models],
-            "Parameter Size": [model.get("details", {}).get("parameter_size", "") for model in models],
+            "Parameter Size": [
+                model.get("details", {}).get("parameter_size", "") for model in models
+            ],
             "Format": [model.get("details", {}).get("format", "") for model in models],
-            "Quantization Level": [model.get("details", {}).get("quantization_level", "") for model in models],
+            "Quantization Level": [
+                model.get("details", {}).get("quantization_level", "")
+                for model in models
+            ],
             "Modified At": [model.get("modified_at", "") for model in models],
         }
 
@@ -45,6 +51,7 @@ def fetch_model_list(page_number, page_size):
     except Exception as e:
         print(f"Error fetching model list: {e}")
         return pd.DataFrame()
+
 
 def manager_tab():
     gr.Markdown("## Model List")
@@ -60,7 +67,7 @@ def manager_tab():
             "Size (bytes)",
             "Digest",
             "Parameter Size",
-            "Quantization Level"
+            "Quantization Level",
         ],
         datatype=["str", "str", "str", "number", "str", "str", "str"],
         label="Available Models",
@@ -73,6 +80,7 @@ def manager_tab():
         inputs=[page_number_input, page_size_input],
         outputs=model_list_table,
     )
+
 
 if __name__ == "__main__":
     with gr.Blocks() as main_block:

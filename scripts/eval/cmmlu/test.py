@@ -2,7 +2,7 @@ from openai import OpenAI
 
 prompt = "Subject: 数学\nQuestion: 1 + 1 = ?\nOptions:\nA: 1\nB: 2\nC: 3\nD: 4\nAnswer:"
 
-messages  = [{"role": "user", "content": prompt}]
+messages = [{"role": "user", "content": prompt}]
 
 client = OpenAI(
     api_key="EMPTY",

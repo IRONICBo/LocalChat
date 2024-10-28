@@ -6,9 +6,10 @@ import time
 from collections import defaultdict
 import openai
 from glob import glob
-from categories import name_en2zh, subcategories, categories
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+from tqdm import tqdm
+from categories import name_en2zh, subcategories, categories
+from evaluator import Evaluator
 
 choices = ["A", "B", "C", "D"]
 
@@ -28,32 +29,50 @@ choices = ["A", "B", "C", "D"]
 
 
 def openai_infer(prompt, temperature=0.2):
-    response = openai.ChatCompletion.create(
+    client = openai.OpenAI(
+        api_key="EMPTY",
+        base_url="http://localhost:11434/v1",
+    )
+    response = client.chat.completions.create(
         model="qwen:0.5b",
         messages=[{"role": "user", "content": prompt}],
         temperature=temperature,
     )
-    answer = response["choices"][0]["message"]["content"].strip()
+    answer = response.choices[0].message.content.strip()
     return answer
 
 
 def eval_subject(subject_name, val_df, dev_df=None, few_shot=True, cot=False):
     correct = 0
     answers = []
+    print(f"Total number of questions: {len(val_df)}")
 
-    for idx, row in val_df.iterrows():
-        question = row["question"]
+    for idx, row in tqdm(val_df.iterrows()):
+        question = row["Question"]
         options = "\n".join([f"{choice}: {row[choice]}" for choice in choices])
-        answer = row["answer"]
+        answer = row["Answer"]
+        print(
+            f"\nCurrent idx: {idx} Question: {question}"
+            + "\n"
+            + options
+            + "\n"
+            + f"Answer: {answer}"
+        )
 
         prompt = f"Subject: {subject_name}\nQuestion: {question}\nOptions:\n{options}\nAnswer:"
         if cot:
             prompt = "Let's think step-by-step to find the correct answer.\n" + prompt
 
         predicted_answer = openai_infer(prompt)
+        print(f"Predicted Answer: {predicted_answer.upper()}")
 
-        if predicted_answer.upper() == answer:
+        evaluator = Evaluator(choices=answer if answer is list else [answer])
+        if evaluator.contains_valid_choice(predicted_answer):
             correct += 1
+            print("Correct!")
+        else:
+            print("Incorrect!")
+
         answers.append(predicted_answer)
 
     accuracy = correct / len(val_df) * 100
@@ -63,6 +82,7 @@ def eval_subject(subject_name, val_df, dev_df=None, few_shot=True, cot=False):
 def main(args, take):
     subject_mapping = category2subject
     filenames = [s.split("/")[-1] for s in glob(args.input_dir + "/test/*csv")]
+    print(filenames)
     subject_list = [val_file.replace(".csv", "") for val_file in filenames]
     accuracy, summary = {}, {}
 
@@ -116,6 +136,9 @@ def main(args, take):
         "Other": {"correct": 0.0, "num": 0},
     }
     for subj, info in subject_mapping.items():
+        print(summary)
+        print(summary[subj]["num"])
+        print(summary["grouped"][group]["num"])
         group = info[2]
         summary["grouped"][group]["num"] += summary[subj]["num"]
         summary["grouped"][group]["correct"] += summary[subj]["correct"]
@@ -145,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--n_times", default=1, type=int)
     parser.add_argument("--do_save_csv", choices=["False", "True"], default="False")
-    parser.add_argument("--output_dir", type=str)
+    parser.add_argument("--output_dir", default=".", type=str)
     parser.add_argument("--input_dir", type=str)
 
     args = parser.parse_args()
