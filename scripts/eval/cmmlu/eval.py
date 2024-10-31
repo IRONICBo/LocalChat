@@ -169,7 +169,7 @@ def main(args, take):
             }
             all_answers[subject_name] = answers
 
-            # 更新checkpoint
+            # Update completed subjects
             completed_subjects.add(subject_name)
             save_checkpoint(checkpoint_all_file, completed_subjects, all_answers, summary)
 
@@ -178,7 +178,7 @@ def main(args, take):
         save_checkpoint(checkpoint_all_file, completed_subjects, all_answers, summary)
         print("Progress saved.")
 
-    # 最后保存所有答案到文件
+    # Save results
     json.dump(
         all_answers,
         open(save_result_dir + "/submission.json", "w"),
