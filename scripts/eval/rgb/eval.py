@@ -148,9 +148,18 @@ if __name__ == '__main__':
         help='model name'
     )
     parser.add_argument(
+        '--ollamamodel', type=str, default='qwen2:0.5b',
+        choices=['qwen2:0.5b', 'qwen2:1.1b', 'gemma2:2b', 'llama3.2:1b'],
+        help='ollamamodel model name'
+    )
+    parser.add_argument(
         '--dataset', type=str, default='en',
         help='evaluetion dataset',
         choices=['en','zh','en_int','zh_int','en_fact','zh_fact']
+    )
+    parser.add_argument(
+        '--noise_rate', type=float, default=0.0,
+        help='rate of noisy passages'
     )
     parser.add_argument(
         '--api_key', type=str, default='api_key',
@@ -167,10 +176,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '--temp', type=float, default=0.7,
         help='corpus id'
-    )
-    parser.add_argument(
-        '--noise_rate', type=float, default=0.0,
-        help='rate of noisy passages'
     )
     parser.add_argument(
         '--correct_rate', type=float, default=0.0,
@@ -213,7 +218,7 @@ if __name__ == '__main__':
     instruction = prompt['instruction']
 
     if modelname == 'ollama':
-        model = OllamaModel()
+        model = OllamaModel(model=args.ollamamodel)
     else :
         # panic if modelname is not supported
         raise ValueError(f"Model {modelname} is not supported")
