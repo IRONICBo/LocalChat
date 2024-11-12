@@ -62,8 +62,8 @@ def download_file(file_name):
     else:
         return "File not found!"
 
-# Manager tab UI function
-def manager_tab():
+# Local files tab UI function
+def files_tab():
     gr.Markdown("## File Management")
 
     # Input elements for pagination, sorting, and search
@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
         with gr.Tabs():
             with gr.Tab(label="Files"):
-                manager_tab()
+                files_tab()
 
     # main_block.queue()
     main_block.launch()

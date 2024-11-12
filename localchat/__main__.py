@@ -5,6 +5,7 @@ import time
 import gradio as gr
 from openai import OpenAI
 
+from files import files_tab
 from monitor import monitor_tab
 from manager import manager_tab
 import logger
@@ -169,6 +170,9 @@ with gr.Blocks() as main_block:
 
         with gr.Tab(label="Monitor"):
             monitor_tab()
+
+        with gr.Tab(label="Files"):
+            files_tab()
 
 main_block.queue()
 main_block.launch()
