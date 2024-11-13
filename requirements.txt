@@ -4,5 +4,6 @@ socksio
 docker
 sqlalchemy
 sqlite3
+chromadb
 httpx[socks]
 psutil==6.0.0
