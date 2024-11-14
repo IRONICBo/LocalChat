@@ -4,7 +4,8 @@ import chromadb
 # from chromadb.utils import embedding_utils
 
 # Initialize ChromaDB client
-client = chromadb.Client()
+client = chromadb.PersistentClient(path="./chroma")
+# client = chromadb.Client(path="./chroma")
 collection = client.create_collection("example_collection")
 
 # Pagination for query results
