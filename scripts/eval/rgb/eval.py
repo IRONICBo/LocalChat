@@ -149,7 +149,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--ollamamodel', type=str, default='qwen2:0.5b',
-        choices=['qwen2:0.5b', 'qwen2:1.1b', 'gemma2:2b', 'llama3.2:1b'],
+        choices=['qwen2:0.5b', 'qwen2:1.5b', 'gemma2:2b', 'llama3.2:1b'],
         help='ollamamodel model name'
     )
     parser.add_argument(
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         # panic if modelname is not supported
         raise ValueError(f"Model {modelname} is not supported")
 
-    filename = f'{resultpath}/prediction_{args.dataset}_{modelname}_temp{temperature}_noise{noise_rate}_passage{passage_num}_correct{args.correct_rate}.json'
+    filename = f'{resultpath}/prediction_{args.ollamamodel}_{args.dataset}_{modelname}_temp{temperature}_noise{noise_rate}_passage{passage_num}_correct{args.correct_rate}.json'
     useddata = {}
     if os.path.exists(filename):
         with open(filename) as f:
@@ -297,4 +297,4 @@ if __name__ == '__main__':
 
 
 
-    json.dump(scores,open(f'{resultpath}/prediction_{args.dataset}_{modelname}_temp{temperature}_noise{noise_rate}_passage{passage_num}_correct{args.correct_rate}_result.json','w'),ensure_ascii=False,indent=4)
+    json.dump(scores,open(f'{resultpath}/prediction_{args.ollamamodel}_{args.dataset}_{modelname}_temp{temperature}_noise{noise_rate}_passage{passage_num}_correct{args.correct_rate}_result.json','w'),ensure_ascii=False,indent=4)
