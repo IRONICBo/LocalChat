@@ -30,6 +30,7 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
     for human, assistant in history[:-1]:
         history_openai_format.append({"role": "user", "content": human})
         history_openai_format.append({"role": "assistant", "content": assistant})
+        # history_openai_format.append({"role": "assistant", "content": "数据比萨斜塔从地基到塔顶高58.36米，从地面到塔顶高55米，钟楼墙体在地面上的宽度是5.09米，在塔顶宽2.48米，总重约14453吨，重心在地基上方22.6米处。圆形地基面积为285平方米，对地面的平均压强为497千帕。2010年时倾斜角度为3.97度[17][18][19]，偏离地基外沿2.3米，顶层突出4.5米[20][21][6]。"})
     history_openai_format.append({"role": "user", "content": history[-1][0]})
 
     client = OpenAI(

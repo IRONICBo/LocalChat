@@ -13,6 +13,7 @@ psutil = "6.0.0"
 socksio = "^1.0.0"
 httpx = {extras = ["socks"], version = "^0.27.2"}
 sqlalchemy = "^2.0.35"
+llama-index = "0.9.42.post2"
 
 
 [build-system]
