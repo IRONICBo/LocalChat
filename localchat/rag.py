@@ -45,7 +45,7 @@ def answer_question(query):
     # Generate a response using the language model
     query_engine = global_index.as_query_engine(node_postprocessors=[reranker_model])
     query_response = query_engine.query(query)
-    return f"Retrieved Content:\n{retrieval_by_reranker[0].text}\n\nAnswer:\n{query_response}"
+    return f"Retrieved Content:\n{retrieval_by_reranker[0].text}\n\n Retrieved Score: {retrieval_by_reranker[0].score}\n\n Model Answer:\n{query_response}"
 
 # Gradio UI
 with gr.Blocks() as demo:
