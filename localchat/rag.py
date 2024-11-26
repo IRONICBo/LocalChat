@@ -9,8 +9,10 @@ import pandas as pd
 
 # Initialize ChromaDB
 client = chromadb.PersistentClient(path="./chroma")
-collection_name = "llamaindex_chroma"
-chromadb_store = ChromaVectorStore(client=client, collection_name=collection_name)
+collection = client.create_collection("example_collection1")
+chromadb_store = ChromaVectorStore(
+    chroma_collection=collection,
+)
 
 # Initialize embedding model and LLM
 embed_args = {'model_name': 'maidalun1020/bce-embedding-base_v1', 'max_length': 512, 'embed_batch_size': 32, 'device': 'cpu'}
