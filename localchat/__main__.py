@@ -6,7 +6,7 @@ import gradio as gr
 from openai import OpenAI
 
 from files import files_tab
-from monitor import monitor_tab
+# from monitor import monitor_tab
 from manager import manager_tab
 import logger
 from models import SessionLocal, ChatbotUsage
@@ -169,8 +169,8 @@ with gr.Blocks() as main_block:
         with gr.Tab(label="Manager"):
             manager_tab()
 
-        with gr.Tab(label="Monitor"):
-            monitor_tab()
+        # with gr.Tab(label="Monitor"):
+            # monitor_tab()
 
         with gr.Tab(label="Files"):
             files_tab()

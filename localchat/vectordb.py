@@ -6,7 +6,8 @@ import chromadb
 # Initialize ChromaDB client
 client = chromadb.PersistentClient(path="./chroma")
 # client = chromadb.Client(path="./chroma")
-collection = client.create_collection("example_collection")
+# Update with get or create
+collection = client.get_or_create_collection("example_collection")
 
 # Pagination for query results
 def fetch_data(page_number, page_size):
