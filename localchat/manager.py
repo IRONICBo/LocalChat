@@ -43,7 +43,6 @@ def fetch_model_list(page_number, page_size):
 
         df = pd.DataFrame(data)
 
-        # 实现分页
         start = (page_number - 1) * page_size
         end = start + page_size
         return df.iloc[start:end].reset_index(drop=True)

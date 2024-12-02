@@ -32,5 +32,13 @@ class ChatbotUsage(Base):
     response_time = Column(Float)
     created_at = Column(DateTime, default=func.now())
 
+# Define the database model for storing document libraries
+class DocumentLibrary(Base):
+    __tablename__ = "document_libraries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+
 
 Base.metadata.create_all(bind=engine)
