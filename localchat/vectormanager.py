@@ -62,14 +62,15 @@ def document_library_manager_tab():
         """Fetch library names for the dropdown."""
         libraries = fetch_document_libraries()
         # return libraries["Name"].tolist()
-        return gr.Dropdown.input(choices=libraries["Name"].tolist())
+        # return gr.Dropdown.input(choices=libraries["Name"].tolist())
+        return gr.update(choices=libraries["Name"].tolist(), value=None)
 
     def show_popup_message(message):
         """Show a message dynamically."""
         return gr.update(value=message, visible=True)
 
     # Add change event
-    library_options_dropdown.change(fn=update_library_dropdown, inputs=view_libraries_button, outputs=library_options_dropdown)
+    libraries_table.change(fn=update_library_dropdown, inputs=None, outputs=library_options_dropdown)
 
     # Update dropdown options
     view_libraries_button.click(fn=fetch_document_libraries, outputs=libraries_table)
