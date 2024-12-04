@@ -11,19 +11,24 @@ from llama_index.retrievers import VectorIndexRetriever
 documents = SimpleDirectoryReader(input_files=["app.py"]).load_data()
 
 # init embedding model and reranker model
-embed_args = {'model_name': 'maidalun1020/bce-embedding-base_v1', 'max_length': 512, 'embed_batch_size': 32, 'device': 'cpu'}
+embed_args = {
+    "model_name": "maidalun1020/bce-embedding-base_v1",
+    "max_length": 512,
+    "embed_batch_size": 32,
+    "device": "cpu",
+}
 embed_model = HuggingFaceEmbedding(**embed_args)
 
-reranker_args = {'model': 'maidalun1020/bce-reranker-base_v1', 'top_n': 5, 'device': 'cpu'}
+reranker_args = {
+    "model": "maidalun1020/bce-reranker-base_v1",
+    "top_n": 5,
+    "device": "cpu",
+}
 reranker_model = BCERerank(**reranker_args)
 
 # example #1. extract embeddings
-query = 'apples'
-passages = [
-        'I like apples',
-        'I like oranges',
-        'Apples and oranges are fruits'
-    ]
+query = "apples"
+passages = ["I like apples", "I like oranges", "Apples and oranges are fruits"]
 query_embedding = embed_model.get_query_embedding(query)
 passages_embeddings = embed_model.get_text_embedding_batch(passages)
 
@@ -38,9 +43,13 @@ index = VectorStoreIndex(nodes, service_context=service_context)
 query = "What is qwen 2?"
 
 # example #2.1. retrieval with EmbeddingModel and RerankerModel
-vector_retriever = VectorIndexRetriever(index=index, similarity_top_k=10, service_context=service_context)
+vector_retriever = VectorIndexRetriever(
+    index=index, similarity_top_k=10, service_context=service_context
+)
 retrieval_by_embedding = vector_retriever.retrieve(query)
-retrieval_by_reranker = reranker_model.postprocess_nodes(retrieval_by_embedding, query_str=query)
+retrieval_by_reranker = reranker_model.postprocess_nodes(
+    retrieval_by_embedding, query_str=query
+)
 print("retrieval_by_reranker", retrieval_by_reranker)
 print("retrieval_by_reranker", retrieval_by_reranker[0].text)
 

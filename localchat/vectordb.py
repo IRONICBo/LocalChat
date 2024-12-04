@@ -1,6 +1,7 @@
 import gradio as gr
 import pandas as pd
 import chromadb
+
 # from chromadb.utils import embedding_utils
 
 # Initialize ChromaDB client
@@ -8,6 +9,7 @@ client = chromadb.PersistentClient(path="./chroma")
 # client = chromadb.Client(path="./chroma")
 # Update with get or create
 collection = client.get_or_create_collection("example_collection")
+
 
 # Pagination for query results
 def fetch_data(page_number, page_size):
@@ -19,19 +21,20 @@ def fetch_data(page_number, page_size):
     :return: DataFrame containing paginated records
     """
     all_data = collection.get()
-    ids, embeddings, metadatas = all_data['ids'], all_data['embeddings'], all_data['metadatas']
+    ids, embeddings, metadatas = (
+        all_data["ids"],
+        all_data["embeddings"],
+        all_data["metadatas"],
+    )
 
     # Create a DataFrame for easier handling and pagination
-    data = pd.DataFrame({
-        "ID": ids,
-        "Embedding": embeddings,
-        "Metadata": metadatas
-    })
+    data = pd.DataFrame({"ID": ids, "Embedding": embeddings, "Metadata": metadatas})
 
     # Pagination logic
     start = (page_number - 1) * page_size
     end = start + page_size
     return data.iloc[start:end].reset_index(drop=True)
+
 
 # Upsert data into ChromaDB
 def upsert_data(record_id, embedding, metadata):
@@ -46,8 +49,11 @@ def upsert_data(record_id, embedding, metadata):
     embedding_vector = [float(i) for i in embedding.split(",")]
     metadata_dict = {"info": metadata}
 
-    collection.upsert(ids=[record_id], embeddings=[embedding_vector], metadatas=[metadata_dict])
+    collection.upsert(
+        ids=[record_id], embeddings=[embedding_vector], metadatas=[metadata_dict]
+    )
     return f"Data with ID '{record_id}' has been upserted."
+
 
 # Delete data from ChromaDB
 def delete_data(record_id):
@@ -59,6 +65,7 @@ def delete_data(record_id):
     """
     collection.delete(ids=[record_id])
     return f"Data with ID '{record_id}' has been deleted."
+
 
 # Search in ChromaDB
 def search_data(query_embedding, page_number, page_size):
@@ -74,21 +81,22 @@ def search_data(query_embedding, page_number, page_size):
 
     results = collection.query(
         query_embeddings=[query_vector],
-        n_results=page_size * page_number  # Fetch up to the nth result to paginate
+        n_results=page_size * page_number,  # Fetch up to the nth result to paginate
     )
 
     # Extract results and paginate
-    ids, scores, metadatas = results['ids'][0], results['distances'][0], results['metadatas'][0]
-    data = pd.DataFrame({
-        "ID": ids,
-        "Score": scores,
-        "Metadata": metadatas
-    })
+    ids, scores, metadatas = (
+        results["ids"][0],
+        results["distances"][0],
+        results["metadatas"][0],
+    )
+    data = pd.DataFrame({"ID": ids, "Score": scores, "Metadata": metadatas})
 
     # Pagination
     start = (page_number - 1) * page_size
     end = start + page_size
     return data.iloc[start:end].reset_index(drop=True)
+
 
 # Gradio UI
 def chromadb_manager_tab():
@@ -109,21 +117,52 @@ def chromadb_manager_tab():
     # Query Section
     page_number_input = gr.Number(label="Page Number", value=1, precision=0)
     page_size_input = gr.Number(label="Page Size", value=10, precision=0)
-    query_result_table = gr.DataFrame(headers=["ID", "Embedding", "Metadata"], datatype=["str", "str", "str"], label="Query Results", height=500)
+    query_result_table = gr.DataFrame(
+        headers=["ID", "Embedding", "Metadata"],
+        datatype=["str", "str", "str"],
+        label="Query Results",
+        height=500,
+    )
     fetch_data_button = gr.Button("Fetch Data")
 
     # Search Section
-    search_embedding_input = gr.Textbox(label="Search Embedding (comma-separated values)")
-    search_page_number_input = gr.Number(label="Search Page Number", value=1, precision=0)
+    search_embedding_input = gr.Textbox(
+        label="Search Embedding (comma-separated values)"
+    )
+    search_page_number_input = gr.Number(
+        label="Search Page Number", value=1, precision=0
+    )
     search_page_size_input = gr.Number(label="Search Page Size", value=10, precision=0)
-    search_result_table = gr.DataFrame(headers=["ID", "Score", "Metadata"], datatype=["str", "number", "str"], label="Search Results", height=500)
+    search_result_table = gr.DataFrame(
+        headers=["ID", "Score", "Metadata"],
+        datatype=["str", "number", "str"],
+        label="Search Results",
+        height=500,
+    )
     search_button = gr.Button("Search Data")
 
     # Button Click Events
-    upsert_button.click(fn=upsert_data, inputs=[record_id_input, embedding_input, metadata_input], outputs=upsert_result)
+    upsert_button.click(
+        fn=upsert_data,
+        inputs=[record_id_input, embedding_input, metadata_input],
+        outputs=upsert_result,
+    )
     delete_button.click(fn=delete_data, inputs=delete_id_input, outputs=delete_result)
-    fetch_data_button.click(fn=fetch_data, inputs=[page_number_input, page_size_input], outputs=query_result_table)
-    search_button.click(fn=search_data, inputs=[search_embedding_input, search_page_number_input, search_page_size_input], outputs=search_result_table)
+    fetch_data_button.click(
+        fn=fetch_data,
+        inputs=[page_number_input, page_size_input],
+        outputs=query_result_table,
+    )
+    search_button.click(
+        fn=search_data,
+        inputs=[
+            search_embedding_input,
+            search_page_number_input,
+            search_page_size_input,
+        ],
+        outputs=search_result_table,
+    )
+
 
 # Main Gradio app
 if __name__ == "__main__":

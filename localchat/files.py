@@ -10,16 +10,20 @@ upload_path = "uploads"
 if not os.path.exists(upload_path):
     os.makedirs(upload_path)
 
+
 # Fetch paginated file list with sorting
-def fetch_file_list(page_number, page_size, sort_by="name", reverse=False, search_query=""):
+def fetch_file_list(
+    page_number, page_size, sort_by="name", reverse=False, search_query=""
+):
     files = os.listdir(upload_path)
     files_info = [
         {
             "Name": f,
             "Size (bytes)": os.path.getsize(os.path.join(upload_path, f)),
-            "Modified At": os.path.getmtime(os.path.join(upload_path, f))
+            "Modified At": os.path.getmtime(os.path.join(upload_path, f)),
         }
-        for f in files if search_query.lower() in f.lower()
+        for f in files
+        if search_query.lower() in f.lower()
     ]
 
     # Sort files
@@ -36,6 +40,7 @@ def fetch_file_list(page_number, page_size, sort_by="name", reverse=False, searc
     end = start + page_size
     return df.iloc[start:end].reset_index(drop=True)
 
+
 # Upload file function
 def upload_file(raw_file_path):
     print(f"Uploading file: {raw_file_path}")
@@ -44,6 +49,7 @@ def upload_file(raw_file_path):
     # copy file to upload directory
     shutil.copyfile(raw_file_path, file_path)
     return f"File '{file_name}' uploaded successfully!"
+
 
 # Delete file function
 def delete_file(file_name):
@@ -54,6 +60,7 @@ def delete_file(file_name):
     else:
         return "File not found!"
 
+
 # Download file function
 def download_file(file_name):
     file_path = os.path.join(upload_path, file_name)
@@ -61,6 +68,7 @@ def download_file(file_name):
         return file_path
     else:
         return "File not found!"
+
 
 # Local files tab UI function
 def files_tab():
@@ -70,7 +78,9 @@ def files_tab():
     with gr.Row():
         page_number_input = gr.Number(label="Page Number", value=1, precision=0)
         page_size_input = gr.Number(label="Page Size", value=10, precision=0)
-        sort_by_input = gr.Dropdown(["name", "size", "modified"], label="Sort By", value="name")
+        sort_by_input = gr.Dropdown(
+            ["name", "size", "modified"], label="Sort By", value="name"
+        )
         reverse_sort_input = gr.Checkbox(label="Sort Descending")
         search_query_input = gr.Textbox(label="Search File Name")
 
@@ -86,7 +96,13 @@ def files_tab():
     fetch_files_button = gr.Button("Fetch File List")
     fetch_files_button.click(
         fn=fetch_file_list,
-        inputs=[page_number_input, page_size_input, sort_by_input, reverse_sort_input, search_query_input],
+        inputs=[
+            page_number_input,
+            page_size_input,
+            sort_by_input,
+            reverse_sort_input,
+            search_query_input,
+        ],
         outputs=file_list_table,
     )
 
@@ -102,14 +118,19 @@ def files_tab():
         delete_file_name_input = gr.Textbox(label="File Name to Delete")
         delete_button = gr.Button("Delete")
         delete_result = gr.Textbox(label="Delete Result")
-        delete_button.click(fn=delete_file, inputs=delete_file_name_input, outputs=delete_result)
+        delete_button.click(
+            fn=delete_file, inputs=delete_file_name_input, outputs=delete_result
+        )
 
     # Download elements
     with gr.Row():
         download_file_name_input = gr.Textbox(label="File Name to Download")
         download_button = gr.Button("Download")
         download_output = gr.File(label="Download File")
-        download_button.click(fn=download_file, inputs=download_file_name_input, outputs=download_output)
+        download_button.click(
+            fn=download_file, inputs=download_file_name_input, outputs=download_output
+        )
+
 
 # Main Gradio app
 if __name__ == "__main__":

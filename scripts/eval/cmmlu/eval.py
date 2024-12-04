@@ -26,6 +26,7 @@ category2subject = category2subject_list
 
 choices = ["A", "B", "C", "D"]
 
+
 def openai_infer(prompt, temperature=0.2):
     client = openai.OpenAI(
         api_key="EMPTY",
@@ -39,11 +40,19 @@ def openai_infer(prompt, temperature=0.2):
     answer = response.choices[0].message.content.strip()
     return answer
 
-def eval_subject(subject_name, val_df, dev_df=None, few_shot=True, cot=False, checkpoint_file=None, completed_questions=None):
+
+def eval_subject(
+    subject_name,
+    val_df,
+    dev_df=None,
+    few_shot=True,
+    cot=False,
+    checkpoint_file=None,
+    completed_questions=None,
+):
     correct = 0
     answers = []
     print(f"Total number of questions: {len(val_df)}")
-
 
     # Load checkpoint for current subject
     if checkpoint_file:
@@ -53,8 +62,10 @@ def eval_subject(subject_name, val_df, dev_df=None, few_shot=True, cot=False, ch
 
     # start from the last processed question
     raw_val_df = val_df.copy()
-    val_df = val_df.iloc[len(answers):]
-    print(f"Number of questions to be processed: {len(val_df)} starting from {len(answers)} with {correct} correct answers.")
+    val_df = val_df.iloc[len(answers) :]
+    print(
+        f"Number of questions to be processed: {len(val_df)} starting from {len(answers)} with {correct} correct answers."
+    )
 
     for idx, row in tqdm(val_df.iterrows()):
         question = row["Question"]
@@ -95,7 +106,9 @@ def eval_subject(subject_name, val_df, dev_df=None, few_shot=True, cot=False, ch
                 "num": idx + 1,
                 "correct": correct,
             }
-            save_checkpoint(checkpoint_file, completed_questions, sub_answers, sub_summary)
+            save_checkpoint(
+                checkpoint_file, completed_questions, sub_answers, sub_summary
+            )
             print(f"Progress saved in {checkpoint_file} with {idx + 1} questions.")
 
     accuracy = correct / len(raw_val_df) * 100
@@ -105,9 +118,19 @@ def eval_subject(subject_name, val_df, dev_df=None, few_shot=True, cot=False, ch
         os.remove(checkpoint_file)
     return accuracy, answers
 
+
 def save_checkpoint(checkpoint_file, completed_subjects, all_answers, summary):
-    with open(checkpoint_file, 'w', encoding='utf-8') as f:
-        json.dump({"completed_subjects": list(completed_subjects), "all_answers": all_answers, "summary": summary}, f, ensure_ascii=False)
+    with open(checkpoint_file, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "completed_subjects": list(completed_subjects),
+                "all_answers": all_answers,
+                "summary": summary,
+            },
+            f,
+            ensure_ascii=False,
+        )
+
 
 def load_checkpoint(checkpoint_file):
     # summary[subject_name] = {
@@ -116,16 +139,25 @@ def load_checkpoint(checkpoint_file):
     #     "correct": correct_ratio * len(val_df) / 100,
     # }
     if os.path.exists(checkpoint_file):
-        with open(checkpoint_file, 'r', encoding='utf-8') as f:
+        with open(checkpoint_file, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return set(data.get("completed_subjects", [])), data.get("all_answers", {}), data.get("summary", {})
+            return (
+                set(data.get("completed_subjects", [])),
+                data.get("all_answers", {}),
+                data.get("summary", {}),
+            )
     return set(), {}, {}
+
 
 def main(args, take):
     # finished subjects and answers dump
-    checkpoint_all_file = os.path.join(args.output_dir, f"checkpoint_all_take{take}.json")
+    checkpoint_all_file = os.path.join(
+        args.output_dir, f"checkpoint_all_take{take}.json"
+    )
     # unfinished current subject and answers dump
-    checkpoint_subject_file = os.path.join(args.output_dir, f"checkpoint_subject_take{take}.json")
+    checkpoint_subject_file = os.path.join(
+        args.output_dir, f"checkpoint_subject_take{take}.json"
+    )
 
     subject_mapping = category2subject
     filenames = [s.split("/")[-1] for s in glob(args.input_dir + "/test/*csv")]
@@ -149,15 +181,22 @@ def main(args, take):
             print(
                 f"{index / len(subject_list)} Inference starts at {run_date} with subject of {subject_name}!"
             )
-            val_file_path = os.path.join(args.input_dir + "/test", f"{subject_name}.csv")
+            val_file_path = os.path.join(
+                args.input_dir + "/test", f"{subject_name}.csv"
+            )
             dev_file_path = os.path.join(args.input_dir + "/dev", f"{subject_name}.csv")
 
             val_df = pd.read_csv(val_file_path)
             dev_df = pd.read_csv(dev_file_path) if args.few_shot else None
 
             correct_ratio, answers = eval_subject(
-                subject_name, val_df, dev_df, few_shot=args.few_shot, cot=args.cot,
-                checkpoint_file=checkpoint_subject_file, completed_questions=completed_subjects
+                subject_name,
+                val_df,
+                dev_df,
+                few_shot=args.few_shot,
+                cot=args.cot,
+                checkpoint_file=checkpoint_subject_file,
+                completed_questions=completed_subjects,
             )
             print(f"Subject: {subject_name}")
             print(f"Acc: {correct_ratio}")
@@ -171,7 +210,9 @@ def main(args, take):
 
             # Update completed subjects
             completed_subjects.add(subject_name)
-            save_checkpoint(checkpoint_all_file, completed_subjects, all_answers, summary)
+            save_checkpoint(
+                checkpoint_all_file, completed_subjects, all_answers, summary
+            )
 
     except KeyboardInterrupt:
         print("Interrupted! Saving progress...")

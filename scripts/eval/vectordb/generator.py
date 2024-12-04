@@ -29,6 +29,7 @@ The questions should cover a variety of aspects from the content. \
 Do not provide answers, only questions.\"
 """
 
+
 # Helper function to generate questions based on context
 def create_question_context_pairs(
     text_nodes: List[TextNode],
@@ -69,12 +70,18 @@ def create_question_context_pairs(
         queries=question_map, corpus=content_map, relevant_docs=context_relevance
     )
 
+
 class QuestionGenerator:
     def __init__(
         self,
         llm_name="qwen2:0.5b",
     ) -> None:
-        embed_args = {'model_name': 'maidalun1020/bce-embedding-base_v1', 'max_length': 512, 'embed_batch_size': 32, 'device': 'cpu'}
+        embed_args = {
+            "model_name": "maidalun1020/bce-embedding-base_v1",
+            "max_length": 512,
+            "embed_batch_size": 32,
+            "device": "cpu",
+        }
         self.embedding_model = HuggingFaceEmbedding(**embed_args)
         self.language_model = Ollama(model="qwen2:0.5b")
         self._processed_files = {}
@@ -85,8 +92,8 @@ class QuestionGenerator:
         """
         pattern = r'[a-zA-Z0-9 \u00C0-\u01B0\u1EA0-\u1EF9`~!@#$%^&*()_\-+=\[\]{}|\\;:\'",.<>/?]+'
         matches = re.findall(pattern, text)
-        cleaned_text = ' '.join(matches)
-        return re.sub(r'\s+', ' ', cleaned_text.strip())
+        cleaned_text = " ".join(matches)
+        return re.sub(r"\s+", " ", cleaned_text.strip())
 
     def _generate_questions_from_nodes(
         self,
@@ -140,7 +147,7 @@ class QuestionGenerator:
             chunk_size=1024,
             chunk_overlap=1024,
             paragraph_separator=1024,
-            secondary_chunking_regex=1024
+            secondary_chunking_regex=1024,
         )
 
         for input_file in tqdm(input_files, desc="Processing and Ingesting Files"):
@@ -196,7 +203,9 @@ class QuestionGenerator:
 
         # Generate question-context dataset
         dataset = self._generate_questions_from_nodes(
-            nodes[:max_samples], llm=self.language_model, questions_per_chunk=questions_per_chunk
+            nodes[:max_samples],
+            llm=self.language_model,
+            questions_per_chunk=questions_per_chunk,
         )
 
         # Save dataset and nodes
