@@ -10,6 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import event
 
 DATABASE_URL = "sqlite:///localchat.db"
 engine = create_engine(DATABASE_URL, echo=True)
@@ -40,6 +41,13 @@ class DocumentLibrary(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=func.now())
+
+
+# Define a listener to insert a default record after the table is created
+@event.listens_for(DocumentLibrary.__table__, "after_create")
+def insert_default_document_library(target, connection, **kwargs):
+    """Insert a default record when the database table is created."""
+    connection.execute(target.insert().values(name="default"))
 
 
 Base.metadata.create_all(bind=engine)
