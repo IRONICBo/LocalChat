@@ -4,8 +4,10 @@ import time
 
 import gradio as gr
 from openai import OpenAI
+import requests
 
 from files import files_tab
+from vectormanager import fetch_document_libraries
 
 # from monitor import monitor_tab
 from manager import manager_tab
@@ -101,6 +103,27 @@ def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
     ]
 
 
+def fetch_model_names():
+    """Fetch model names from the API."""
+    try:
+        response = requests.get("http://localhost:11434/api/tags")
+        response.raise_for_status()
+        data = response.json()
+        models = data.get("models", [])
+        model_names = [model["name"] for model in models]
+        return model_names
+    except Exception as e:
+        return ["Error fetching models"]
+
+
+def update_model_dropdown():
+    """Update Dropdown with model names."""
+    model_names = fetch_model_names()
+    knowledge_base_names = fetch_document_libraries()["Name"].tolist()
+    print(knowledge_base_names)
+    return gr.update(choices=model_names, value=None), gr.update(choices=knowledge_base_names, value=None)
+
+
 def chat_tab():
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
 
@@ -111,12 +134,20 @@ def chat_tab():
         show_label=False,
     )
     with gr.Row():
-        # TODO: Query from installed models
         model_choice = gr.Dropdown(
-            choices=["qwen:0.5b", "qwen:1.8b", "qwen:4b"],
-            value="qwen:0.5b",
+            choices=["Loading..."],
+            value="Please choose a model",
             label="Choose Model",
         )
+
+        knowledge_base_choice = gr.Dropdown(
+            choices=["Loading..."],
+            value="Please choose a knowledge base",
+            label="Choose Knowledge Base",
+        )
+
+        update_button = gr.Button("Refresh")
+        update_button.click(fn=update_model_dropdown, inputs=[], outputs=[model_choice, knowledge_base_choice])
 
         # Temperature slider
         temperature = gr.Slider(
@@ -153,7 +184,7 @@ def chat_tab():
     )
     bot_msg = chat_msg.then(
         bot,
-        [chatbot, model_choice, temperature, max_tokens],
+        [chatbot, model_choice, knowledge_base_choice, temperature, max_tokens],
         [chatbot, table],
         api_name="bot_response",
     )
