@@ -8,5 +8,5 @@ chromadb
 httpx[socks]
 psutil==6.0.0
 BCEmbedding==0.1.5
-lama-index==0.9.42.post2
+lama-index==0.9.42
 pypdf=5.1.0

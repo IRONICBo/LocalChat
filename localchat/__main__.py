@@ -26,7 +26,7 @@ def add_message(history, message):
     return history, gr.MultimodalTextbox(value=None, interactive=False)
 
 
-def bot(history, model="qwen:0.5b", temperature=0.1, max_tokens=1024):
+def bot(history, model="qwen:0.5b", knowledge_base_choice=None, temperature=0.1, max_tokens=1024):
     history[-1][1] = ""
 
     history_openai_format = []
