@@ -1,10 +1,23 @@
 import os
 import shutil
+import chromadb
+from llama_index import Document, SimpleDirectoryReader
 import pandas as pd
 import gradio as gr
+from llama_index.node_parser import SentenceSplitter
+from llama_index.ingestion.pipeline import IngestionPipeline
+from llama_index.embeddings import OllamaEmbedding
+from llama_index.vector_stores.chroma import ChromaVectorStore
 
 # Define file upload directory
 upload_path = "uploads"
+ollama_embedding = OllamaEmbedding(model_name="nomic-embed-text:latest")
+
+db_path = "./chroma_db"
+db_client = chromadb.PersistentClient(path=db_path)
+collection_name = "default"
+chroma_collection = db_client.get_or_create_collection(collection_name)
+vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 
 # Ensure the directory exists
 if not os.path.exists(upload_path):
@@ -40,6 +53,12 @@ def fetch_file_list(
     end = start + page_size
     return df.iloc[start:end].reset_index(drop=True)
 
+# Get documents from file
+def get_documents_from_file(file) -> Document:
+    with open(file, "r") as f:
+        text = f.read()
+    return Document(text=text,metadata={"file": file})
+
 
 # Upload file function
 def upload_file(raw_file_path):
@@ -48,6 +67,24 @@ def upload_file(raw_file_path):
     file_path = os.path.join(upload_path, file_name)
     # copy file to upload directory
     shutil.copyfile(raw_file_path, file_path)
+
+    # Ingestion pipeline
+    pipeline = IngestionPipeline(
+        transformations=[
+            SentenceSplitter(),
+            ollama_embedding,
+        ],
+        vector_store=vector_store,
+    )
+
+    documents = SimpleDirectoryReader("/Users/asklv/Projects/AO.space/LocalLLM/LocalChat/localchat/uploads/aaa").load_data()
+
+    pipeline.run(
+        documents=documents,
+        show_progress=True,
+        num_workers=4,
+    )
+
     return f"File '{file_name}' uploaded successfully!"
 
 
