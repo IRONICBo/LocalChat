@@ -77,7 +77,8 @@ def upload_file(raw_file_path):
         vector_store=vector_store,
     )
 
-    documents = SimpleDirectoryReader("/Users/asklv/Projects/AO.space/LocalLLM/LocalChat/localchat/uploads/aaa").load_data()
+    # Change with specific file reader.
+    documents = SimpleDirectoryReader(input_files=[raw_file_path]).load_data()
 
     pipeline.run(
         documents=documents,
