@@ -45,7 +45,6 @@ index = VectorStoreIndex(nodes, service_context=service_context)
 
 query = "What is qwen 2?"
 
-# example #2.1. retrieval with EmbeddingModel and RerankerModel
 # vector_retriever = VectorIndexRetriever(
 #     index=index, similarity_top_k=10, service_context=service_context
 # )
