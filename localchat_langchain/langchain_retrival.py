@@ -74,8 +74,8 @@ def answer_question(question):
         return [["An error occurred:", str(e)]]
 
 
-# Define the Gradio interface
-with gr.Blocks() as interface:
+# Local files tab UI function
+def retrival_tab():
     gr.Markdown("# LangChain-Powered File Upload & Retrieval Interface")
 
     with gr.Row():
@@ -109,5 +109,14 @@ with gr.Blocks() as interface:
         answer_question, inputs=[question_input], outputs=[answer_output]
     )
 
-# Launch the interface
-interface.launch()
+# Main Gradio app
+if __name__ == "__main__":
+    with gr.Blocks() as main_block:
+        gr.Markdown("<h1><center>Retrival Management System</center></h1>")
+
+        with gr.Tabs():
+            with gr.Tab(label="Retrival"):
+                retrival_tab()
+
+    # main_block.queue()
+    main_block.launch()
