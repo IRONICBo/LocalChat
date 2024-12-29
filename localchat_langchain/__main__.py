@@ -7,7 +7,7 @@ from openai import OpenAI
 import requests
 
 # from files import files_tab
-from langchain_retrival import retrival_tab
+from langchain_retrival import get_retrieved_documents, retrival_tab
 from vectormanager import fetch_document_libraries
 
 # from monitor import monitor_tab
@@ -35,6 +35,11 @@ def bot(
     knowledge_base_choice=None,
 ):
     history[-1][1] = ""
+    print(f"History: {history}")
+
+    # get question
+    question = history[-1][0]
+    print(f"Question: {question}")
 
     history_openai_format = []
     for human, assistant in history[:-1]:
@@ -42,6 +47,17 @@ def bot(
         history_openai_format.append({"role": "assistant", "content": assistant})
         # history_openai_format.append({"role": "assistant", "content": "数据比萨斜塔从地基到塔顶高58.36米，从地面到塔顶高55米，钟楼墙体在地面上的宽度是5.09米，在塔顶宽2.48米，总重约14453吨，重心在地基上方22.6米处。圆形地基面积为285平方米，对地面的平均压强为497千帕。2010年时倾斜角度为3.97度[17][18][19]，偏离地基外沿2.3米，顶层突出4.5米[20][21][6]。"})
     history_openai_format.append({"role": "user", "content": history[-1][0]})
+
+    # add retrival results to history
+    if knowledge_base_choice is not None:
+        knowledge_base = get_retrieved_documents(question)
+        kb_data = "Current data: "
+        for doc in knowledge_base:
+            kb_data += doc.page_content + "\n"
+
+        history_openai_format.append({"role": "user", "content": kb_data})
+
+    print(f"Prompts: {history_openai_format}")
 
     client = OpenAI(
         api_key="EMPTY",
