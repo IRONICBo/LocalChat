@@ -6,12 +6,10 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from uuid import uuid4
 import os
-import requests
 from typing import List
 
 # Initialize Zotero
 ZOTERO_USER_ID = "9062826"  # Replace with your Zotero user ID
-
 zot = zotero.Zotero(ZOTERO_USER_ID, "user", local=True)
 
 # Create embeddings and vector store
@@ -26,58 +24,66 @@ vectorstore = Chroma(
 )
 retriever = vectorstore.as_retriever(search_type="similarity", k=2)
 
-def fetch_zotero_items(start: int, limit: int) -> List[list]:
-    # Fetch items from Zotero API
-    items = zot.items(start=start, limit=limit)
-    print(f"Fetched {len(items)} items from Zotero. items: {items}")
+
+def format_zotero_items(items):
+    """
+    Format Zotero items for display in a Dataframe-compatible way.
+    """
     formatted_items = []
-
     for item in items:
-        # Extract relevant fields for display in DataFrame
+        # Extract metadata for display
         item_id = item.get("key", "N/A")
-        title = item.get("title", "No Title")
-        creators = ", ".join([creator.get("lastName", "") for creator in item.get("creators", [])])
-        tags = ", ".join(item.get("tags", []))
-        date = item.get("date", "No Date")
+        title = item["data"].get("title", "No Title")
+        creators = ", ".join([
+            f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
+            for creator in item["data"].get("creators", [])
+        ])
+        tags = ", ".join([tag.get("tag", "") for tag in item["data"].get("tags", [])])
+        date = item["data"].get("date", "No Date")
+        url = item["data"].get("url", "No URL")
 
-        formatted_items.append([item_id, title, creators, tags, date])
-
+        # Append as a list (not a dictionary)
+        formatted_items.append([item_id, title, creators, tags, date, url])
     return formatted_items
+
+
+def fetch_zotero_items(start: int, limit: int) -> List[list]:
+    """
+    Fetch items from Zotero API and format them for display in Dataframe.
+    """
+    items = zot.items(start=start, limit=limit)
+    print(f"Fetched {len(items)} items from Zotero.")
+    return format_zotero_items(items)
+
 
 def fetch_items_by_tag(tag: str, limit: int = 100) -> List[list]:
+    """
+    Fetch items by tag from Zotero API and format them for display in Dataframe.
+    """
     items = zot.items(tags=tag, limit=limit)
-    formatted_items = []
+    return format_zotero_items(items)
 
-    for item in items:
-        # Extract relevant fields for display in DataFrame
-        item_id = item.get("key", "N/A")
-        title = item.get("title", "No Title")
-        creators = ", ".join([creator.get("lastName", "") for creator in item.get("creators", [])])
-        tags = ", ".join(item.get("tags", []))
-        date = item.get("date", "No Date")
 
-        formatted_items.append([item_id, title, creators, tags, date])
-
-    return formatted_items
-
-# Function to process PDF files and add to vector store
 def process_pdf(raw_file_path: str):
+    """
+    Process a PDF file: extract text, split, and store in vectorstore.
+    """
     file_path = os.path.join(UPLOAD_DIRECTORY, os.path.basename(raw_file_path))
     with open(raw_file_path, "rb") as f:
         content = f.read()
 
-    # Save the uploaded file content to the specified directory
+    # Save the uploaded file content
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # Assume we have text extraction from PDF (you need to use PDF text extraction logic here)
+    # Dummy content (replace with actual PDF text extraction logic)
     content = "Dummy extracted text from PDF"
 
-    # Split the content into documents
+    # Split the content into smaller documents
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
     documents = text_splitter.split_text(content)
 
-    # Convert to LangChain Documents with metadata
+    # Convert to LangChain Documents
     langchain_documents = [
         Document(page_content=doc, metadata={"source": os.path.basename(raw_file_path)})
         for doc in documents
@@ -90,8 +96,11 @@ def process_pdf(raw_file_path: str):
     vectorstore.add_documents(documents=langchain_documents, ids=uuids)
     return "PDF processed and added to vectorstore."
 
-# Gradio UI Function for Zotero Manager Tab
+
 def zotero_manager_tab():
+    """
+    Create Gradio UI for Zotero management.
+    """
     with gr.Row():
         with gr.Column():
             gr.Markdown("## Zotero Library Management")
@@ -102,8 +111,8 @@ def zotero_manager_tab():
             fetch_button = gr.Button("Fetch Zotero Items")
             items_output = gr.Dataframe(
                 label="Zotero Items",
-                headers=["ID", "Title", "Creators", "Tags", "Date"],
-                datatype=["str", "str", "str", "str", "str"],
+                headers=["ID", "Title", "Creators", "Tags", "Date", "URL"],  # 设置表头
+                datatype=["str", "str", "str", "str", "str", "str"],         # 每列的数据类型
                 interactive=False,
             )
 
@@ -112,8 +121,8 @@ def zotero_manager_tab():
             tag_search_button = gr.Button("Fetch Items by Tag")
             items_by_tag_output = gr.Dataframe(
                 label="Items with Tag",
-                headers=["ID", "Title", "Creators", "Tags", "Date"],
-                datatype=["str", "str", "str", "str", "str"],
+                headers=["ID", "Title", "Creators", "Tags", "Date", "URL"],
+                datatype=["str", "str", "str", "str", "str", "str"],
                 interactive=False,
             )
 
@@ -136,16 +145,16 @@ def zotero_manager_tab():
                 interactive=False,
             )
 
-    # Handle fetching items from Zotero
+    # Fetch Zotero items
     fetch_button.click(fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output])
 
-    # Handle fetching items by tag
+    # Fetch items by tag
     tag_search_button.click(fetch_items_by_tag, inputs=[tag_input], outputs=[items_by_tag_output])
 
-    # Handle PDF processing
+    # Process PDF file
     pdf_process_button.click(process_pdf, inputs=[pdf_input], outputs=[pdf_process_output])
 
-    # Handle user query and search in vector store
+    # Submit question to vectorstore
     submit_button.click(
         lambda question: retriever.get_relevant_documents(question),
         inputs=[question_input],
