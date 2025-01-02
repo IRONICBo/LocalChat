@@ -1,4 +1,5 @@
 import gradio as gr
+from urllib.parse import unquote
 from pyzotero import zotero
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
@@ -25,6 +26,17 @@ vectorstore = Chroma(
 retriever = vectorstore.as_retriever(search_type="similarity", k=2)
 
 
+def get_local_file_path(item):
+    if "links" in item and "enclosure" in item["links"]:
+        enclosure_link = item["links"]["enclosure"].get("href", "No Path")
+        print(f"Enclosure link: {enclosure_link}")
+        if enclosure_link and enclosure_link.startswith("file://"):
+            raw_path = enclosure_link.replace("file://", "")
+            # Unquote the path to handle special characters
+            return unquote(raw_path)
+    return None
+
+
 def format_zotero_items(items):
     """
     Format Zotero items for display in a Dataframe-compatible way.
@@ -34,16 +46,23 @@ def format_zotero_items(items):
         # Extract metadata for display
         item_id = item.get("key", "N/A")
         title = item["data"].get("title", "No Title")
-        creators = ", ".join([
-            f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
-            for creator in item["data"].get("creators", [])
-        ])
+        creators = ", ".join(
+            [
+                f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
+                for creator in item["data"].get("creators", [])
+            ]
+        )
         tags = ", ".join([tag.get("tag", "") for tag in item["data"].get("tags", [])])
         date = item["data"].get("date", "No Date")
         url = item["data"].get("url", "No URL")
+        local_path = get_local_file_path(item)
+        print(f"Local path: {local_path}")
+        # Check if the local path is valid
+        if local_path:
+            print(os.path.exists(local_path))
 
         # Append as a list (not a dictionary)
-        formatted_items.append([item_id, title, creators, tags, date, url])
+        formatted_items.append([item_id, title, creators, tags, date, url, local_path])
     return formatted_items
 
 
@@ -60,6 +79,7 @@ def fetch_items_by_tag(tag: str, limit: int = 100) -> List[list]:
     """
     Fetch items by tag from Zotero API and format them for display in Dataframe.
     """
+    print(f"Fetching items with tag: {tag}")
     items = zot.items(tags=tag, limit=limit)
     return format_zotero_items(items)
 
@@ -111,8 +131,24 @@ def zotero_manager_tab():
             fetch_button = gr.Button("Fetch Zotero Items")
             items_output = gr.Dataframe(
                 label="Zotero Items",
-                headers=["ID", "Title", "Creators", "Tags", "Date", "URL"],  # 设置表头
-                datatype=["str", "str", "str", "str", "str", "str"],         # 每列的数据类型
+                headers=[
+                    "ID",
+                    "Title",
+                    "Creators",
+                    "Tags",
+                    "Date",
+                    "URL",
+                    "Path",
+                ],  # Column headers
+                datatype=[
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                ],  # Data types
                 interactive=False,
             )
 
@@ -127,14 +163,20 @@ def zotero_manager_tab():
             )
 
             # File upload and processing
-            pdf_input = gr.File(label="Upload a PDF File", file_types=[".pdf"], type="filepath")
+            pdf_input = gr.File(
+                label="Upload a PDF File", file_types=[".pdf"], type="filepath"
+            )
             pdf_process_button = gr.Button("Process PDF")
-            pdf_process_output = gr.Textbox(label="PDF Processing Status", interactive=False)
+            pdf_process_output = gr.Textbox(
+                label="PDF Processing Status", interactive=False
+            )
 
         with gr.Column():
             gr.Markdown("## Zotero Vector Database Operations")
             question_input = gr.Textbox(
-                label="Enter your question", placeholder="Type your question here...", lines=2
+                label="Enter your question",
+                placeholder="Type your question here...",
+                lines=2,
             )
             submit_button = gr.Button("Submit Query")
 
@@ -146,13 +188,19 @@ def zotero_manager_tab():
             )
 
     # Fetch Zotero items
-    fetch_button.click(fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output])
+    fetch_button.click(
+        fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output]
+    )
 
     # Fetch items by tag
-    tag_search_button.click(fetch_items_by_tag, inputs=[tag_input], outputs=[items_by_tag_output])
+    tag_search_button.click(
+        fetch_items_by_tag, inputs=[tag_input], outputs=[items_by_tag_output]
+    )
 
     # Process PDF file
-    pdf_process_button.click(process_pdf, inputs=[pdf_input], outputs=[pdf_process_output])
+    pdf_process_button.click(
+        process_pdf, inputs=[pdf_input], outputs=[pdf_process_output]
+    )
 
     # Submit question to vectorstore
     submit_button.click(
