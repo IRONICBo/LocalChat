@@ -29,7 +29,6 @@ retriever = vectorstore.as_retriever(search_type="similarity", k=2)
 def get_local_file_path(item):
     if "links" in item and "enclosure" in item["links"]:
         enclosure_link = item["links"]["enclosure"].get("href", "No Path")
-        print(f"Enclosure link: {enclosure_link}")
         if enclosure_link and enclosure_link.startswith("file://"):
             raw_path = enclosure_link.replace("file://", "")
             # Unquote the path to handle special characters
@@ -46,21 +45,14 @@ def format_zotero_items(items):
         # Extract metadata for display
         item_id = item.get("key", "N/A")
         title = item["data"].get("title", "No Title")
-        creators = ", ".join(
-            [
-                f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
-                for creator in item["data"].get("creators", [])
-            ]
-        )
+        creators = ", ".join([
+            f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
+            for creator in item["data"].get("creators", [])
+        ])
         tags = ", ".join([tag.get("tag", "") for tag in item["data"].get("tags", [])])
         date = item["data"].get("date", "No Date")
         url = item["data"].get("url", "No URL")
         local_path = get_local_file_path(item)
-        print(f"Local path: {local_path}")
-        # Check if the local path is valid
-        if local_path:
-            print(os.path.exists(local_path))
-
         # Append as a list (not a dictionary)
         formatted_items.append([item_id, title, creators, tags, date, url, local_path])
     return formatted_items
@@ -71,50 +63,57 @@ def fetch_zotero_items(start: int, limit: int) -> List[list]:
     Fetch items from Zotero API and format them for display in Dataframe.
     """
     items = zot.items(start=start, limit=limit)
-    print(f"Fetched {len(items)} items from Zotero.")
     return format_zotero_items(items)
 
 
-def fetch_items_by_tag(tag: str, limit: int = 100) -> List[list]:
+def process_files(items):
     """
-    Fetch items by tag from Zotero API and format them for display in Dataframe.
+    Process valid file paths extracted from items_output.
+    :param items: Dataframe content (list of rows).
+    :return: Processing status message.
     """
-    print(f"Fetching items with tag: {tag}")
-    items = zot.items(tags=tag, limit=limit)
-    return format_zotero_items(items)
+    print(f"Processing {len(items)} items")
 
+    valid_paths = []
+    for i, row in enumerate(items['Path']):
+        print(f"Row {i}: {row}")
 
-def process_pdf(raw_file_path: str):
-    """
-    Process a PDF file: extract text, split, and store in vectorstore.
-    """
-    file_path = os.path.join(UPLOAD_DIRECTORY, os.path.basename(raw_file_path))
-    with open(raw_file_path, "rb") as f:
-        content = f.read()
+        path = row
 
-    # Save the uploaded file content
-    with open(file_path, "wb") as f:
-        f.write(content)
+        # Check if the path exists
+        if os.path.exists(path):
+            valid_paths.append(path)
+        else:
+            print(f"Path does not exist: {path}")
 
-    # Dummy content (replace with actual PDF text extraction logic)
-    content = "Dummy extracted text from PDF"
+    print(f"Found {len(valid_paths)} valid files for processing.")
 
-    # Split the content into smaller documents
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-    documents = text_splitter.split_text(content)
+    if len(valid_paths) == 0:
+        return "No valid files found for processing."
 
-    # Convert to LangChain Documents
-    langchain_documents = [
-        Document(page_content=doc, metadata={"source": os.path.basename(raw_file_path)})
-        for doc in documents
-    ]
+    # Process each valid file
+    processed_count = 0
+    for path in valid_paths:
+        file_name = path
+        print(f"Processing file: {file_name}")
 
-    # Generate UUIDs for the documents
-    uuids = [str(uuid4()) for _ in langchain_documents]
+        # Simulated PDF processing logic
+        content = f"Processed content from {file_name}"
 
-    # Add documents to vectorstore
-    vectorstore.add_documents(documents=langchain_documents, ids=uuids)
-    return "PDF processed and added to vectorstore."
+        # Add to vectorstore (dummy example)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+        documents = text_splitter.split_text(content)
+
+        langchain_documents = [
+            Document(page_content=doc, metadata={"source": file_name})
+            for doc in documents
+        ]
+        uuids = [str(uuid4()) for _ in langchain_documents]
+        vectorstore.add_documents(documents=langchain_documents, ids=uuids)
+
+        processed_count += 1
+
+    return f"Processed {processed_count} valid files out of {len(valid_paths)} total paths."
 
 
 def zotero_manager_tab():
@@ -131,52 +130,19 @@ def zotero_manager_tab():
             fetch_button = gr.Button("Fetch Zotero Items")
             items_output = gr.Dataframe(
                 label="Zotero Items",
-                headers=[
-                    "ID",
-                    "Title",
-                    "Creators",
-                    "Tags",
-                    "Date",
-                    "URL",
-                    "Path",
-                ],  # Column headers
-                datatype=[
-                    "str",
-                    "str",
-                    "str",
-                    "str",
-                    "str",
-                    "str",
-                    "str",
-                ],  # Data types
+                headers=["ID", "Title", "Creators", "Tags", "Date", "URL", "Path"],  # Column headers
+                datatype=["str", "str", "str", "str", "str", "str", "str"],         # Data types
                 interactive=False,
             )
 
-            # Search by tag
-            tag_input = gr.Textbox(label="Enter Tag", placeholder="e.g., deep learning")
-            tag_search_button = gr.Button("Fetch Items by Tag")
-            items_by_tag_output = gr.Dataframe(
-                label="Items with Tag",
-                headers=["ID", "Title", "Creators", "Tags", "Date", "URL"],
-                datatype=["str", "str", "str", "str", "str", "str"],
-                interactive=False,
-            )
-
-            # File upload and processing
-            pdf_input = gr.File(
-                label="Upload a PDF File", file_types=[".pdf"], type="filepath"
-            )
-            pdf_process_button = gr.Button("Process PDF")
-            pdf_process_output = gr.Textbox(
-                label="PDF Processing Status", interactive=False
-            )
+            # Process files
+            process_button = gr.Button("Process Selected Files")
+            process_output = gr.Textbox(label="Processing Status", interactive=False)
 
         with gr.Column():
             gr.Markdown("## Zotero Vector Database Operations")
             question_input = gr.Textbox(
-                label="Enter your question",
-                placeholder="Type your question here...",
-                lines=2,
+                label="Enter your question", placeholder="Type your question here...", lines=2
             )
             submit_button = gr.Button("Submit Query")
 
@@ -188,18 +154,13 @@ def zotero_manager_tab():
             )
 
     # Fetch Zotero items
-    fetch_button.click(
-        fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output]
-    )
+    fetch_button.click(fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output])
 
-    # Fetch items by tag
-    tag_search_button.click(
-        fetch_items_by_tag, inputs=[tag_input], outputs=[items_by_tag_output]
-    )
-
-    # Process PDF file
-    pdf_process_button.click(
-        process_pdf, inputs=[pdf_input], outputs=[pdf_process_output]
+    # Process selected files
+    process_button.click(
+        lambda items: process_files(items),  # Ensure items are valid
+        inputs=[items_output],
+        outputs=[process_output],
     )
 
     # Submit question to vectorstore
