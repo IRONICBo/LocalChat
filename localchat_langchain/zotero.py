@@ -9,6 +9,8 @@ from uuid import uuid4
 import os
 from typing import List
 
+from langchain.document_loaders import PyPDFLoader
+
 # Initialize Zotero
 ZOTERO_USER_ID = "9062826"  # Replace with your Zotero user ID
 zot = zotero.Zotero(ZOTERO_USER_ID, "user", local=True)
@@ -77,7 +79,6 @@ def process_files(items):
     valid_paths = []
     for i, row in enumerate(items['Path']):
         print(f"Row {i}: {row}")
-
         path = row
 
         # Check if the path exists
@@ -98,16 +99,10 @@ def process_files(items):
         print(f"Processing file: {file_name}")
 
         # Simulated PDF processing logic
-        content = f"Processed content from {file_name}"
-
-        # Add to vectorstore (dummy example)
+        loader = PyPDFLoader(file_path=file_name)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-        documents = text_splitter.split_text(content)
+        langchain_documents = loader.load_and_split(text_splitter=text_splitter)
 
-        langchain_documents = [
-            Document(page_content=doc, metadata={"source": file_name})
-            for doc in documents
-        ]
         uuids = [str(uuid4()) for _ in langchain_documents]
         vectorstore.add_documents(documents=langchain_documents, ids=uuids)
 
