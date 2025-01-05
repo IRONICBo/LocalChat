@@ -54,6 +54,11 @@ vectorstore = Chroma(
 retriever = vectorstore.as_retriever(search_type="similarity", k=2)
 
 
+def get_retrieved_documents(question):
+    results = retriever.get_relevant_documents(question)
+    return results
+
+
 def answer_question(question):
     try:
         # Perform similarity search
@@ -108,6 +113,7 @@ def retrival_tab():
     submit_button.click(
         answer_question, inputs=[question_input], outputs=[answer_output]
     )
+
 
 # Main Gradio app
 if __name__ == "__main__":
