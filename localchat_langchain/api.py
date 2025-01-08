@@ -7,6 +7,7 @@ from langchain.docstore.document import Document
 from uuid import uuid4
 import os
 from langchain_ollama import OllamaEmbeddings
+from pydantic import BaseModel
 
 app = FastAPI(
     title="ChromaDB Text Upload and Search API",
@@ -36,32 +37,32 @@ vectorstore = Chroma(
     persist_directory="./chroma_db",
 )
 
-@app.post("/upload", summary="Upload content", description="Update a content and save it to ChromaDB and file system.")
-async def upload_content(file: UploadFile):
-    if not file.filename.endswith(".txt"):
-        raise HTTPException(status_code=400, detail="Only .txt files are allowed")
+class UploadData(BaseModel):
+    content: str
 
-    file_path = os.path.join(UPLOAD_DIRECTORY, file.filename)
+@app.post("/upload", summary="Upload json", description="Upload a JSON file containing content, save it, and add it to the vectorstore.")
+async def upload_json(data: UploadData):
+    if not data.content:
+        raise HTTPException(status_code=400, detail="Content field is required in the JSON data.")
 
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
+    file_id = str(uuid4())
+    file_path = os.path.join(UPLOAD_DIRECTORY, f"{file_id}.txt")
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        text = f.read()
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(data.content)
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-    documents = text_splitter.split_text(text)
+    documents = text_splitter.split_text(data.content)
 
     langchain_documents = [
-        Document(page_content=doc, metadata={"source": file.filename})
+        Document(page_content=doc, metadata={"source": f"{file_id}.txt"})
         for doc in documents
     ]
 
     uuids = [str(uuid4()) for _ in langchain_documents]
     vectorstore.add_documents(documents=langchain_documents, ids=uuids)
 
-    return JSONResponse(content={"message": "File processed and added to vectorstore."})
+    return JSONResponse(content={"message": "Content saved and added to vectorstore.", "file_id": file_id})
 
 
 @app.get(
