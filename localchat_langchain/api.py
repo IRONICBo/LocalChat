@@ -5,9 +5,12 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain.docstore.document import Document
 from uuid import uuid4
+from trafilatura import extract
 import os
 from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel
+
+from models import HtmlMetadata, SessionLocal
 
 app = FastAPI(
     title="ChromaDB Text Upload and Search API",
@@ -37,22 +40,47 @@ vectorstore = Chroma(
     persist_directory="./chroma_db",
 )
 
+
 class UploadData(BaseModel):
     content: str
+    url: str
 
-@app.post("/upload", summary="Upload json", description="Upload a JSON file containing content, save it, and add it to the vectorstore.")
+
+@app.post(
+    "/upload",
+    summary="Upload json",
+    description="Upload a JSON file containing content, save it, and add it to the vectorstore.",
+)
 async def upload_json(data: UploadData):
+    print(data.content)
     if not data.content:
-        raise HTTPException(status_code=400, detail="Content field is required in the JSON data.")
+        raise HTTPException(
+            status_code=400, detail="Content field is required in the JSON data."
+        )
 
     file_id = str(uuid4())
     file_path = os.path.join(UPLOAD_DIRECTORY, f"{file_id}.txt")
 
+    # with open(file_path, "w", encoding="utf-8") as f:
+    #     f.write(data.content)
+
+    markdown_content = extract(
+        data.content
+    )
+    print(111, data.content)
+    print(222, markdown_content)
+
+    if markdown_content is None:
+        raise HTTPException(
+            status_code=400, detail="Failed to extract content from the HTML."
+        )
+
+    # 5. Save the converted Markdown content
     with open(file_path, "w", encoding="utf-8") as f:
-        f.write(data.content)
+        f.write(markdown_content)
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-    documents = text_splitter.split_text(data.content)
+    documents = text_splitter.split_text(markdown_content)
 
     langchain_documents = [
         Document(page_content=doc, metadata={"source": f"{file_id}.txt"})
@@ -62,7 +90,30 @@ async def upload_json(data: UploadData):
     uuids = [str(uuid4()) for _ in langchain_documents]
     vectorstore.add_documents(documents=langchain_documents, ids=uuids)
 
-    return JSONResponse(content={"message": "Content saved and added to vectorstore.", "file_id": file_id})
+    db = SessionLocal()
+    try:
+        metadata = HtmlMetadata(url=data.url, filepath=file_path)
+        db.add(metadata)
+        db.commit()
+        db.refresh(metadata)
+
+        return JSONResponse(
+            content={
+                "message": "HTML file downloaded, converted to Markdown, and metadata saved.",
+                "file_id": file_id,
+                "metadata": {
+                    "url": data.url,
+                    "filepath": file_path,
+                    "id": metadata.id,
+                    "created_at": metadata.created_at,
+                },
+            }
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error occurred: {str(e)}")
+    finally:
+        db.close()
 
 
 @app.get(
@@ -97,6 +148,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
+        port=8080,
         # reload=True,
     )
