@@ -1,12 +1,13 @@
 // 提取页面的纯文本内容
 function getPageText() {
-    const bodyText = document.body.innerText || "";
-    return bodyText.trim();
+    // const bodyText = document.body.innerText || "";
+    // return bodyText.trim();
+    return document.body.innerHTML.trim();
   }
 
   // 发送 POST 请求到 API
   async function sendToAPI(content) {
-    const apiURL = "http://127.0.0.1:8000/upload"; // 替换为你的 upload API 地址
+    const apiURL = "http://127.0.0.1:8080/upload"; // 替换为你的 upload API 地址
 
     try {
       const response = await fetch(apiURL, {
@@ -14,7 +15,10 @@ function getPageText() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({
+          content: content,
+          url: window.location.href,
+        })
       });
 
       if (response.ok) {
