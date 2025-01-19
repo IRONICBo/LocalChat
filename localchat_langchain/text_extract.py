@@ -1,3 +1,7 @@
+from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 from textrank4zh import TextRank4Keyword, TextRank4Sentence
 from langchain_community.document_loaders import Docx2txtLoader
 
@@ -9,9 +13,29 @@ from langchain_core.documents import Document
 from uuid import uuid4
 import os
 
+import uvicorn
+
 # File upload directory
 UPLOAD_DIRECTORY = "./uploaded_files_tmp"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
+
+
+app = FastAPI(
+    title="Keywords extract for search API",
+    description="""
+    This is a text processing and search service based on FastAPI and ChromaDB:
+    - Search for relevant content using `/search`.
+    """,
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def process_folder(files):
@@ -92,8 +116,28 @@ vectorstore = Chroma(
     embedding_function=embeddings,
     persist_directory="./chroma_db_tmp",
 )
-retriever = vectorstore.as_retriever(search_type="similarity", k=5)
+retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={'k': 5})
 
+
+@app.get(
+    "/search",
+    summary="search similarity",
+    description="Search for similar documents in the vectorstore.",
+)
+async def search(query: str, top_k: int = 2):
+    try:
+        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={'k':top_k})
+        results = retriever.get_relevant_documents(query)
+        response = [
+            {
+                "content": doc.page_content,
+                "metadata": doc.metadata,
+            }
+            for doc in results
+        ]
+        return JSONResponse(content={"results": response})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error occurred: {str(e)}")
 
 def get_retrieved_documents(question):
     results = retriever.get_relevant_documents(question)
@@ -163,6 +207,7 @@ def retrival_tab():
 
 # Main Gradio app
 if __name__ == "__main__":
+    import threading
     with gr.Blocks() as main_block:
         gr.Markdown("<h1><center>Retrival Management System</center></h1>")
 
@@ -171,4 +216,9 @@ if __name__ == "__main__":
                 retrival_tab()
 
     # main_block.queue()
+    def run_uvicorn():
+        uvicorn.run(app, host="0.0.0.0", port=8082)
+    threading.Thread(target=run_uvicorn).start()
+
     main_block.launch()
+
