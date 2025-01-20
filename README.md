@@ -65,3 +65,12 @@ Prepare the frontend environment for gradio:
 pip install -r requirements.txt
 python app.py
 ```
+
+## Thanks
+
+- [trafilatura](https://github.com/adbar/trafilatura): Discover and Extract Text Data on the Web
+- [langchain](https://github.com/langchain-ai/langchain): LangChain makes it easy to build applications using large language models and other sources of data.
+- [ollama](https://github.com/jmorganca/ollama): Ollama is a fast, reliable, and open-source alternative to OpenAI's ChatGPT API.
+- [gradio](https://github.com/gradio-app/gradio): Gradio is an open-source framework for building machine learning and data science apps.
+- [qwen](https://github.com/QwenLM/Qwen-Chat): Qwen-Chat is a Chinese language model developed by Qwen Labs.
+- [simple-one-api](https://github.com/fruitbars/simple-one-api): Various large models accessible through a standardized OpenAI API format, ready to use out of the box
