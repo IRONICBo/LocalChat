@@ -4,6 +4,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="EMPTY",
+    # simple one api endpoint
     base_url="http://localhost:8787/v1",
 )
 embeddings = OllamaEmbeddings(model="nomic-embed-text:latest")
@@ -19,7 +20,12 @@ def raw_chat(prompt, model="qwen2:0.5b"):
         api_key="EMPTY",
         base_url="http://localhost:11434/v1",
     )
-    messages = [{"role": "user", "content": prompt}]
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
+        }
+    ]
     completion = client.chat.completions.create(
         model=model,
         messages=messages,
@@ -35,11 +41,18 @@ def rag_chat(prompt, model="qwen2:0.5b"):
         api_key="EMPTY",
         base_url="http://localhost:11434/v1",
     )
-    messages = [{"role": "user", "content": prompt}]
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
+        }
+    ]
+    # add retrival results to history
     knowledge_base = _get_retrieved_documents(prompt)
     kb_data = "Current data is, you need to refer to the following data: "
     for doc in knowledge_base:
         kb_data += doc.page_content + "\n"
+
     messages.append({"role": "user", "content": kb_data})
     completion = client.chat.completions.create(
         model=model,
@@ -75,24 +88,8 @@ def compare(func1, func2, a):
     else:
         return None
 
-def calculate_output2_score(prompts_file):
-    total_prompts = 0
-    output2_count = 0
-
-    with open(prompts_file, "r", encoding="utf-8") as file:
-        for line in file:
-            prompt = line.strip()
-            result = compare(raw_chat, rag_chat, prompt)
-            if result is False:
-                output2_count += 1
-            total_prompts += 1
-
-    if total_prompts > 0:
-        output2_percentage = (output2_count / total_prompts) * 100
-        print(f"Output 2 Score: {output2_percentage}%")
-    else:
-        print("No available prompts.")
 
 if __name__ == "__main__":
-    prompts_file = "prompts.txt"
-    calculate_output2_score(prompts_file)
+    a = "比萨斜塔高度是多少"
+    result = compare(raw_chat, rag_chat, a)
+    print("Output 1 is better:", result)
