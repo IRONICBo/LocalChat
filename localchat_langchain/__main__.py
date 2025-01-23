@@ -159,6 +159,12 @@ def chat_tab():
         placeholder="Enter message or upload file...",
         show_label=False,
     )
+    tag_selector = gr.Radio(
+        choices=["Loading..."],
+        label="Choose a Tag",
+        interactive=True,
+    )
+
     with gr.Row():
         model_choice = gr.Dropdown(
             choices=["Loading..."],
