@@ -37,7 +37,7 @@ embeddings = OllamaEmbeddings(model="nomic-embed-text:latest")
 vectorstore = Chroma(
     collection_name="default",
     embedding_function=embeddings,
-    persist_directory="./chroma_db",
+    persist_directory="./chroma_db_tmp",
 )
 
 
@@ -64,11 +64,9 @@ async def upload_json(data: UploadData):
     # with open(file_path, "w", encoding="utf-8") as f:
     #     f.write(data.content)
 
-    markdown_content = extract(
-        data.content
-    )
-    print(111, data.content)
-    print(222, markdown_content)
+    markdown_content = extract(data.content)
+    print("Step1:", data.content)
+    print("Step2:", markdown_content)
 
     if markdown_content is None:
         raise HTTPException(
@@ -105,11 +103,12 @@ async def upload_json(data: UploadData):
                     "url": data.url,
                     "filepath": file_path,
                     "id": metadata.id,
-                    "created_at": metadata.created_at,
+                    "created_at": str(metadata.created_at),
                 },
             }
         )
     except Exception as e:
+        print(f"Error occurred: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error occurred: {str(e)}")
     finally:
@@ -148,6 +147,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8080,
+        port=8082,
         # reload=True,
     )

@@ -51,13 +51,9 @@ def process_folder(files):
 
             # Get core keywords
             tr4w = TextRank4Keyword()
-            tr4w.analyze(
-                content, lower=True, window=2
-            )
+            tr4w.analyze(content, lower=True, window=2)
             keywords = []
-            for item in tr4w.get_keywords(
-                100, word_min_len=2
-            ):
+            for item in tr4w.get_keywords(100, word_min_len=2):
                 keywords.append(item.word)
             print(f"Keywords of file: {keywords}")
 
@@ -116,7 +112,7 @@ vectorstore = Chroma(
     embedding_function=embeddings,
     persist_directory="./chroma_db_tmp",
 )
-retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={'k': 5})
+retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
 
 @app.get(
@@ -126,7 +122,9 @@ retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={'k
 )
 async def search(query: str, top_k: int = 2):
     try:
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={'k':top_k})
+        retriever = vectorstore.as_retriever(
+            search_type="similarity", search_kwargs={"k": top_k}
+        )
         results = retriever.get_relevant_documents(query)
         response = [
             {
@@ -138,6 +136,7 @@ async def search(query: str, top_k: int = 2):
         return JSONResponse(content={"results": response})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error occurred: {str(e)}")
+
 
 def get_retrieved_documents(question):
     results = retriever.get_relevant_documents(question)
@@ -208,6 +207,7 @@ def retrival_tab():
 # Main Gradio app
 if __name__ == "__main__":
     import threading
+
     with gr.Blocks() as main_block:
         gr.Markdown("<h1><center>Retrival Management System</center></h1>")
 
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     # main_block.queue()
     def run_uvicorn():
         uvicorn.run(app, host="0.0.0.0", port=8082)
+
     threading.Thread(target=run_uvicorn).start()
 
     main_block.launch()
-
