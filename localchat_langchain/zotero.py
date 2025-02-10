@@ -12,7 +12,7 @@ from typing import List
 from langchain.document_loaders import PyPDFLoader
 
 # Initialize Zotero
-ZOTERO_USER_ID = "9062826"  # Replace with your Zotero user ID
+ZOTERO_USER_ID = ""  # Replace with your Zotero user ID
 zot = zotero.Zotero(ZOTERO_USER_ID, "user", local=True)
 
 # Create embeddings and vector store
@@ -47,10 +47,12 @@ def format_zotero_items(items):
         # Extract metadata for display
         item_id = item.get("key", "N/A")
         title = item["data"].get("title", "No Title")
-        creators = ", ".join([
-            f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
-            for creator in item["data"].get("creators", [])
-        ])
+        creators = ", ".join(
+            [
+                f'{creator.get("firstName", "")} {creator.get("lastName", "")}'.strip()
+                for creator in item["data"].get("creators", [])
+            ]
+        )
         tags = ", ".join([tag.get("tag", "") for tag in item["data"].get("tags", [])])
         date = item["data"].get("date", "No Date")
         url = item["data"].get("url", "No URL")
@@ -77,7 +79,7 @@ def process_files(items):
     print(f"Processing {len(items)} items")
 
     valid_paths = []
-    for i, row in enumerate(items['Path']):
+    for i, row in enumerate(items["Path"]):
         print(f"Row {i}: {row}")
         path = row
 
@@ -125,8 +127,24 @@ def zotero_manager_tab():
             fetch_button = gr.Button("Fetch Zotero Items")
             items_output = gr.Dataframe(
                 label="Zotero Items",
-                headers=["ID", "Title", "Creators", "Tags", "Date", "URL", "Path"],  # Column headers
-                datatype=["str", "str", "str", "str", "str", "str", "str"],         # Data types
+                headers=[
+                    "ID",
+                    "Title",
+                    "Creators",
+                    "Tags",
+                    "Date",
+                    "URL",
+                    "Path",
+                ],  # Column headers
+                datatype=[
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                    "str",
+                ],  # Data types
                 interactive=False,
             )
 
@@ -137,7 +155,9 @@ def zotero_manager_tab():
         with gr.Column():
             gr.Markdown("## Zotero Vector Database Operations")
             question_input = gr.Textbox(
-                label="Enter your question", placeholder="Type your question here...", lines=2
+                label="Enter your question",
+                placeholder="Type your question here...",
+                lines=2,
             )
             submit_button = gr.Button("Submit Query")
 
@@ -149,7 +169,9 @@ def zotero_manager_tab():
             )
 
     # Fetch Zotero items
-    fetch_button.click(fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output])
+    fetch_button.click(
+        fetch_zotero_items, inputs=[start_input, limit_input], outputs=[items_output]
+    )
 
     # Process selected files
     process_button.click(
