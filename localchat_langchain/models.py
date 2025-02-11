@@ -48,11 +48,39 @@ class HtmlMetadata(Base):
     __tablename__ = "html_metadata"
 
     id = Column(Integer, primary_key=True, index=True)
-    url = Column(String, unique=True, nullable=False)  # URL of the HTML document
+    url = Column(String, nullable=False)  # URL of the HTML document
     filepath = Column(String, nullable=False)  # Filepath where the document is stored
     created_at = Column(
         DateTime, default=func.now()
     )  # Timestamp when the entry is created
+
+
+# Define the settings
+class LocalChatSettings(Base):
+    __tablename__ = "localchat_settings"
+
+    # We only support one setting here, so id must be 1
+    id = Column(Integer, primary_key=True, index=True)
+    system_prompt = Column(
+        String,
+        nullable=False,
+        default="You are a helpful assistant. Please assist the user with their inquiries.",
+    )
+    llm = Column(String, nullable=False, default="qwen2:0.5b")
+    keep_alive = Column(String, nullable=False, default="1h")
+    top_k = Column(Integer, nullable=False, default=40)
+    top_p = Column(Float, nullable=False, default=0.9)
+    repeat_last_n = Column(Integer, nullable=False, default=64)
+    repeat_penalty = Column(Float, nullable=False, default=1.1)
+    request_timeout = Column(Float, nullable=False, default=300)
+    port = Column(Integer, nullable=False, default=11434)
+    context_window = Column(Integer, nullable=False, default=8000)
+    temperature = Column(Float, nullable=False, default=0.1)
+    chat_token_limit = Column(Integer, nullable=False, default=4000)
+    created_at = Column(DateTime, default=func.now())
+
+    def __repr__(self):
+        return f"<LocalChatRagSettings(model={self.llm}, temperature={self.temperature}, created_at={self.created_at})>"
 
 
 # Define a listener to insert a default record after the table is created
