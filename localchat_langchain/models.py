@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy import (
     DateTime,
     create_engine,
@@ -90,4 +91,57 @@ def insert_default_document_library(target, connection, **kwargs):
     connection.execute(target.insert().values(name="default"))
 
 
+@event.listens_for(LocalChatSettings.__table__, "after_create")
+def insert_default_localchat_rag_settings(target, connection, **kwargs):
+    """Insert a default record when the database table is created."""
+    connection.execute(
+        target.insert().values(
+            id=1,
+            system_prompt="You are a helpful assistant. Please assist the user with their inquiries.",
+            llm="qwen2:0.5b",
+            keep_alive="1h",
+            top_k=40,
+            top_p=0.9,
+            repeat_last_n=64,
+            repeat_penalty=1.1,
+            request_timeout=300,
+            port=11434,
+            context_window=8000,
+            temperature=0.1,
+            chat_token_limit=4000,
+            created_at=datetime.now(),
+        )
+    )
+
+
+def check_localchat_settings_is_empty():
+    """Check if the localchat_settings table is empty."""
+    session = SessionLocal()
+    existing_config = (
+        session.query(LocalChatSettings).filter(LocalChatSettings.id == 1).first()
+    )
+    print("existing_config: ", existing_config)
+    if not existing_config:
+        print("localchat_settings is empty, inserting default record...")
+        default_config = LocalChatSettings(
+            id=1,
+            system_prompt="You are a helpful assistant. Please assist the user with their inquiries.",
+            llm="qwen2:0.5b",
+            keep_alive="1h",
+            top_k=40,
+            top_p=0.9,
+            repeat_last_n=64,
+            repeat_penalty=1.1,
+            request_timeout=300,
+            port=11434,
+            context_window=8000,
+            temperature=0.1,
+            chat_token_limit=4000,
+            created_at=datetime.now(),
+        )
+        session.add(default_config)
+        session.commit()
+
+
 Base.metadata.create_all(bind=engine)
+check_localchat_settings_is_empty()
