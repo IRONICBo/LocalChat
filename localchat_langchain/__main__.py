@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import time
 
 import gradio as gr
@@ -28,6 +29,20 @@ def add_message(history, message):
         history.append((message["text"], None))
     return history, gr.MultimodalTextbox(value=None, interactive=False)
 
+
+def convert_highlight_thinktext(text):
+    """Convert <think> content to highlighted lines with > DeepThink:."""
+    def format_think_content(content):
+        lines = content.splitlines()
+        # Line 1 with DeepThink label
+        formatted_lines = [f'> DeepThink: {lines[0].strip()}']
+        # Line 2 and beyond
+        for line in lines[1:]:
+            formatted_lines.append(f'> {line.strip()}')
+        return '\n'.join(formatted_lines)
+
+    new_text = re.sub(r'<think>(.*?)</think>', lambda match: f'{format_think_content(match.group(1))}', text, flags=re.DOTALL)
+    return new_text
 
 def bot(
     history,
@@ -77,6 +92,12 @@ def bot(
 
     for chunk in completion:
         history[-1][1] += chunk.choices[0].delta.content
+
+        # Output conversion, now for deepseek CoT
+        if model.startswith("deepseek"):
+            history[-1][1] = convert_highlight_thinktext(history[-1][1])
+        print(f"Delta: {history[-1][1]}")
+
         yield history, [[0, 0, 0, 0, 0]]
 
     end_time = time.time()
