@@ -2,21 +2,21 @@ import os
 import sys
 import re
 import time
+import logger
 
 import gradio as gr
 from openai import OpenAI
 import requests
-
-# from files import files_tab
 from langchain_retrival import get_retrieved_documents, retrival_tab
 from zotero import zotero_manager_tab
 from settings import settings_tab
 from vectormanager import fetch_document_libraries
 
+# from files import files_tab
 # from monitor import monitor_tab
 from manager import manager_tab
-import logger
 from models import SessionLocal, ChatbotUsage
+from utils.alert import show_info, show_warning
 
 log = logger.Logger("localchat.log")
 sys.stdout = log
@@ -32,25 +32,40 @@ def add_message(history, message):
 
 def convert_highlight_thinktext(text):
     """Convert <think> content to highlighted lines with > DeepThink:."""
+
     def format_think_content(content):
         lines = content.splitlines()
         # Line 1 with DeepThink label
-        formatted_lines = [f'> DeepThink: {lines[0].strip()}']
+        formatted_lines = [f"> DeepThink: {lines[0].strip()}"]
         # Line 2 and beyond
         for line in lines[1:]:
-            formatted_lines.append(f'> {line.strip()}')
-        return '\n'.join(formatted_lines)
+            formatted_lines.append(f"> {line.strip()}")
+        return "\n".join(formatted_lines)
 
-    new_text = re.sub(r'<think>(.*?)</think>', lambda match: f'{format_think_content(match.group(1))}', text, flags=re.DOTALL)
+    new_text = re.sub(
+        r"<think>(.*?)</think>",
+        lambda match: f"{format_think_content(match.group(1))}",
+        text,
+        flags=re.DOTALL,
+    )
     return new_text
+
 
 def bot(
     history,
     model="qwen:0.5b",
+    knowledge_base_choice=None,
     temperature=0.1,
     max_tokens=1024,
-    knowledge_base_choice=None,
 ):
+    if knowledge_base_choice is None:
+        show_warning(
+            "Currently, you have not selected any knowledge base. Please select a knowledge base to improve your chatting experience."
+        )
+
+    if history[-1][0] is None or model is None:
+        return history, gr.MultimodalTextbox(value=None, interactive=False)
+
     history[-1][1] = ""
     print(f"History: {history}")
 
@@ -96,9 +111,8 @@ def bot(
         # Output conversion, now for deepseek CoT
         if model.startswith("deepseek"):
             history[-1][1] = convert_highlight_thinktext(history[-1][1])
-        print(f"Delta: {history[-1][1]}")
 
-        yield history, [[0, 0, 0, 0, 0]]
+        yield history
 
     end_time = time.time()
     response_time = end_time - start_time
@@ -138,15 +152,7 @@ def bot(
         db.close()
 
     # TODO: Current state is not valid in multi chat
-    yield history, [
-        [
-            prompt_tokens_count,
-            completion_tokens_count,
-            total_token_count,
-            response_time,
-            total_token_count / response_time,
-        ]
-    ]
+    yield history
 
 
 def fetch_model_names():
@@ -181,21 +187,23 @@ def chat_tab():
         placeholder="Enter message or upload file...",
         show_label=False,
     )
-    tag_selector = gr.Radio(
-        choices=["Loading..."],
-        label="Choose a Tag",
-        interactive=True,
-    )
+
+    # Disable now
+    # tag_selector = gr.Radio(
+    #     choices=["Loading..."],
+    #     label="Choose a Tag",
+    #     interactive=True,
+    # )
 
     with gr.Row():
         model_choice = gr.Dropdown(
-            choices=["Loading..."],
+            choices=["Please Refresh..."],
             value="Please choose a model",
             label="Choose Model",
         )
 
         knowledge_base_choice = gr.Dropdown(
-            choices=["Loading..."],
+            choices=["Please Refresh..."],
             value="Please choose a knowledge base",
             label="Choose Knowledge Base",
         )
@@ -207,50 +215,25 @@ def chat_tab():
             outputs=[model_choice, knowledge_base_choice],
         )
 
-        # Temperature slider
-        temperature = gr.Slider(
-            value=0.1,
-            minimum=0.0,
-            maximum=1.0,
-            step=0.01,
-            label="Temperature",
-        )
-
-        # Max tokens slider
-        max_tokens = gr.Slider(
-            value=1024,
-            minimum=32,
-            maximum=4096,
-            step=32,
-            label="Max Tokens",
-        )
-
-    # Create a DataFrame (table) to display token and performance data
-    table = gr.DataFrame(
-        headers=[
-            "prompt_tokens",
-            "completion_tokens",
-            "total_tokens",
-            "response_time (s)",
-            "tokens/s",
-        ],
-        datatype=["number"] * 5,
-    )
-
     chat_msg = chat_input.submit(
         add_message, [chatbot, chat_input], [chatbot, chat_input]
     )
     bot_msg = chat_msg.then(
         bot,
-        [chatbot, model_choice, temperature, max_tokens, knowledge_base_choice],
-        [chatbot, table],
+        [chatbot, model_choice, knowledge_base_choice],
+        [chatbot],
         api_name="bot_response",
     )
     bot_msg.then(lambda: gr.MultimodalTextbox(interactive=True), None, [chat_input])
 
 
 with gr.Blocks() as main_block:
-    gr.Markdown("<h1><center>Build Your Own Chatbot with Local LLM Model</center></h1>")
+    gr.Markdown(
+        """
+        <h1><center>🚀🚀🚀 LocalChat 🚀🚀🚀</center></h1>
+        <p><center>LocalChat is designed for personal AI chatbot that uses the private LLM models with knowledge base support.</center></p>
+    """
+    )
 
     with gr.Tabs():
         with gr.Tab(label="Chat"):
