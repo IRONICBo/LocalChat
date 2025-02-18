@@ -17,6 +17,7 @@ from vectormanager import fetch_document_libraries
 from manager import manager_tab
 from models import SessionLocal, ChatbotUsage
 from utils.alert import show_info, show_warning
+from db.settings import fetch_setting
 
 log = logger.Logger("localchat.log")
 sys.stdout = log
@@ -55,9 +56,9 @@ def bot(
     history,
     model="qwen:0.5b",
     knowledge_base_choice=None,
-    temperature=0.1,
-    max_tokens=1024,
 ):
+    system_prompt, _, top_k, top_p, temperature, max_tokens = fetch_setting()
+
     if knowledge_base_choice is None:
         show_warning(
             "Currently, you have not selected any knowledge base. Please select a knowledge base to improve your chatting experience."
@@ -65,6 +66,8 @@ def bot(
 
     if history[-1][0] is None or model is None:
         return history, gr.MultimodalTextbox(value=None, interactive=False)
+
+    # TODO: Add system prompt
 
     history[-1][1] = ""
     print(f"History: {history}")
@@ -95,13 +98,23 @@ def bot(
         api_key="EMPTY",
         base_url="http://localhost:11434/v1",
     )
-    completion = client.chat.completions.create(
-        model=model,
-        messages=history_openai_format,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=True,
-    )
+
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=history_openai_format,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+        print(
+            f"Chat with config model: {model} temperature: {temperature} top_p: {top_p} top_k: {top_k} max_tokens: {max_tokens}"
+        )
+    except Exception as e:
+        print(f"Error: {e}")
+        show_warning(f"Error: {e}")
+        return history, gr.MultimodalTextbox(value=None, interactive=False)
 
     start_time = time.time()
 
@@ -117,14 +130,20 @@ def bot(
     end_time = time.time()
     response_time = end_time - start_time
 
-    # Calculate token count and tokens per second
-    completion_without_stream = client.chat.completions.create(
-        model=model,
-        messages=history_openai_format,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=False,
-    )
+    try:
+        # Calculate token count and tokens per second
+        completion_without_stream = client.chat.completions.create(
+            model=model,
+            messages=history_openai_format,
+            top_p=top_p,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=False,
+        )
+    except Exception as e:
+        print(f"Error: {e}")
+        show_warning(f"Error: {e}")
+        return history, gr.MultimodalTextbox(value=None, interactive=False)
 
     total_token_count = completion_without_stream.usage.total_tokens
     prompt_tokens_count = completion_without_stream.usage.prompt_tokens
