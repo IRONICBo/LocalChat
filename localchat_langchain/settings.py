@@ -5,6 +5,10 @@ from models import SessionLocal, LocalChatSettings
 from utils.alert import show_info, show_warning
 from utils.model_helper import fetch_model_names
 
+DEFAULT_ROOT_FILE_PATH = os.path.join(os.getcwd(), ".files")
+DEFAULT_OLLAMA_API = "http://localhost:11434"
+
+
 # Helper function to fetch the setting with id=1
 def fetch_setting():
     db = SessionLocal()
@@ -12,13 +16,13 @@ def fetch_setting():
         setting = db.query(LocalChatSettings).filter(LocalChatSettings.id == 1).first()
         if setting:
             return [
-                    setting.system_prompt,
-                    setting.llm,
-                    setting.top_k,
-                    setting.top_p,
-                    setting.temperature,
-                    setting.chat_token_limit,
-                ]
+                setting.system_prompt,
+                setting.llm,
+                setting.top_k,
+                setting.top_p,
+                setting.temperature,
+                setting.chat_token_limit,
+            ]
         else:
             return "Setting with ID 1 does not exist."
     finally:
@@ -26,7 +30,9 @@ def fetch_setting():
 
 
 # Helper function to update the setting with id=1
-def update_setting(system_prompt, llm, top_k_input, top_p_input, temperature, chat_token_limit):
+def update_setting(
+    system_prompt, llm, top_k_input, top_p_input, temperature, chat_token_limit
+):
     db = SessionLocal()
     try:
         setting = db.query(LocalChatSettings).filter(LocalChatSettings.id == 1).first()
@@ -49,26 +55,46 @@ def update_setting(system_prompt, llm, top_k_input, top_p_input, temperature, ch
 
     return fetch_setting()
 
+
 # Gradio UI for querying and updating the setting with id=1
 def settings_tab():
     gr.Markdown("## Manage Settings")
 
-    system_prompt_default, llm_default, top_k_default, top_p_default, temperature_default, max_tokens_default = fetch_setting()
+    (
+        system_prompt_default,
+        llm_default,
+        top_k_default,
+        top_p_default,
+        temperature_default,
+        max_tokens_default,
+    ) = fetch_setting()
     model_names = fetch_model_names()
 
     # Update Setting Section
     gr.Markdown("##### Static Setting")
     # TODO: Add Ollama API and File Root Path in db
-    gr.Textbox(label="Ollama API", value="https://localhost:11434")
-    gr.Textbox(label="File Root Path", value=os.path.join(os.getcwd(), ".files"))
+    gr.Textbox(label="Ollama API", value=DEFAULT_OLLAMA_API)
+    gr.Textbox(label="File Root Path", value=DEFAULT_ROOT_FILE_PATH)
 
     gr.Markdown("##### Modify Setting")
     system_prompt_input = gr.Textbox(label="System Prompt", value=system_prompt_default)
     llm_input = gr.Dropdown(label="LLM", value=llm_default, choices=model_names)
-    top_k_input = gr.Slider(label="Top K", value=top_k_default, minimum=0.0, maximum=1.0, step=0.01)
-    top_p_input = gr.Slider(label="Top P", value=top_p_default, minimum=0.0, maximum=1.0, step=0.01)
-    temperature_input = gr.Slider(label="Temperature", value=temperature_default, minimum=0.0, maximum=1.0, step=0.01)
-    max_tokens_input = gr.Slider(label="Max Tokens", value=max_tokens_default, minimum=32, maximum=8192, step=32)
+    top_k_input = gr.Slider(
+        label="Top K", value=top_k_default, minimum=0.0, maximum=1.0, step=0.01
+    )
+    top_p_input = gr.Slider(
+        label="Top P", value=top_p_default, minimum=0.0, maximum=1.0, step=0.01
+    )
+    temperature_input = gr.Slider(
+        label="Temperature",
+        value=temperature_default,
+        minimum=0.0,
+        maximum=1.0,
+        step=0.01,
+    )
+    max_tokens_input = gr.Slider(
+        label="Max Tokens", value=max_tokens_default, minimum=32, maximum=8192, step=32
+    )
     update_button = gr.Button("Update Setting")
 
     # Update the setting with id=1
