@@ -20,6 +20,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 # Define the database model for storing chatbot usage statistics
 class ChatbotUsage(Base):
     __tablename__ = "chatbot_usage"
@@ -41,11 +49,11 @@ class FileMetadata(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String, unique=True, nullable=False)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
     file_hash = Column(
         String, unique=True, nullable=False
     )  # SHA-256 hash of file content
-    location = Column(String, unique=True, nullable=False)
+    location = Column(String, nullable=False)
     size = Column(Integer, default=0, index=True)
     type = Column(String, index=True)  # Saved file type
     ori_type = Column(String, index=True)  # original file type

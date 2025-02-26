@@ -8,7 +8,8 @@ import gradio as gr
 from openai import OpenAI
 import requests
 from langchain_retrival import get_retrieved_documents, retrival_tab
-from zotero import zotero_manager_tab
+
+# from zotero import zotero_manager_tab
 from settings import settings_tab
 from vectormanager import fetch_document_libraries
 
@@ -267,8 +268,8 @@ with gr.Blocks() as main_block:
         with gr.Tab(label="Retrival"):
             retrival_tab()
 
-        with gr.Tab(label="Zotero Helper"):
-            zotero_manager_tab()
+        # with gr.Tab(label="Zotero Helper"):
+        #     zotero_manager_tab()
 
         with gr.Tab(label="Settings"):
             settings_tab()
