@@ -114,10 +114,8 @@ def settings_tab():
 # Main Gradio app
 if __name__ == "__main__":
     with gr.Blocks() as main_block:
-        gr.Markdown("<h1><center>LocalChatRagSettings Manager (ID=1)</center></h1>")
-        with gr.Tabs():
-            with gr.Tab(label="Setting Manager"):
-                settings_tab()
+        gr.Markdown("<h1><center>LocalChat Settings (ID=1)</center></h1>")
+        settings_tab()
 
     main_block.queue()
     main_block.launch()

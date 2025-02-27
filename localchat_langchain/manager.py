@@ -1,6 +1,7 @@
 import gradio as gr
 
 from document_manager import document_manager_tab
+from file_manager import file_manager_tab
 from model_manager import model_manager_tab
 
 
@@ -10,6 +11,9 @@ def manager_tab():
 
     with gr.Tab(label="Knowledge Manager"):
         document_manager_tab()
+
+    with gr.Tab(label="File Manager"):
+        file_manager_tab()
 
 
 if __name__ == "__main__":
