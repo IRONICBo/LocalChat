@@ -9,6 +9,7 @@ from langchain_core.documents import Document
 from uuid import uuid4
 from tqdm import tqdm
 
+from model_manager import DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE
 from models import get_db, SessionLocal, FileMetadata
 from utils.alert import show_info, show_warning
 from utils.model_helper import fetch_model_names
@@ -132,7 +133,7 @@ def submit_file_metadata(
     return db_filemetadata
 
 
-def fetch_file_metadata_list():
+def fetch_file_metadata_list(page_number, page_size):
     db = next(get_db())
     file_metadatas = get_all_file_metadatas(db)
     file_metadata_list = [
@@ -170,19 +171,21 @@ def file_manager_tab():
                 file_count="multiple",
             )
             process_button = gr.Button("Process File")
-            process_output = gr.Textbox(
-                label="File Processing Status", interactive=False
-            )
 
-            question_input = gr.Textbox(
-                label="Enter your question",
-                placeholder="Type your question here...",
-                lines=2,
+            page_number_input = gr.Number(
+                label="Page Number", value=DEFAULT_PAGE_NUM, precision=0
             )
-            submit_button = gr.Button("Submit")
+            page_size_input = gr.Slider(
+                label="Page Size",
+                value=DEFAULT_PAGE_SIZE,
+                minimum=1,
+                maximum=10,
+                step=1,
+            )
+            fetch_files_metadata_button = gr.Button("Refresh File Metadata")
 
         with gr.Column(scale=3):
-            # Use a Dataframe for displaying the answer
+            model_list = fetch_file_metadata_list(DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE)
             file_metadata_list = gr.Dataframe(
                 label="File Metadata",
                 headers=[
@@ -198,11 +201,14 @@ def file_manager_tab():
                     "Updated At",
                 ],  # Specify the headers
                 interactive=False,
+                value=model_list,
             )
 
-    process_button.click(process_files, inputs=[file_input], outputs=[process_output])
-    submit_button.click(
-        fetch_file_metadata_list, inputs=[], outputs=[file_metadata_list]
+    process_button.click(process_files, inputs=[file_input])
+    fetch_files_metadata_button.click(
+        fn=fetch_file_metadata_list,
+        inputs=[page_number_input, page_size_input],
+        outputs=file_metadata_list,
     )
 
 
