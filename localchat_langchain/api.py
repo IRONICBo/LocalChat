@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain.docstore.document import Document
@@ -10,6 +11,7 @@ import os
 from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel
 
+from settings import DEFAULT_ROOT_FILE_PATH
 from models import HtmlMetadata, SessionLocal
 
 app = FastAPI(
@@ -29,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# For static file
+app.mount("/static", app=StaticFiles(directory=DEFAULT_ROOT_FILE_PATH), name="static")
 
 UPLOAD_DIRECTORY = "./uploaded_files"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
