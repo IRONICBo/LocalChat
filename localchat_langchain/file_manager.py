@@ -50,15 +50,27 @@ def _process_file(raw_file_path):
 
     shutil.copy(raw_file_path, file_path)
 
+    ori_type = os.path.splitext(original_file_name)[1]
+    if ori_type is None:
+        ori_type = "unknown"
+
     # Read and process the saved file
+    content = ""
+    if ori_type == ".txt" or ori_type == ".md":
+        content = _get_txt_content(file_path)
+    elif ori_type == ".docx":
+        content = _get_docx_content(file_path)
+    elif ori_type == ".pdf":
+        content = _get_pdf_content(file_path)
+    else:
+        show_warning(f"Unsupported file type: {ori_type}")
+        return
+
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     file_hash = str(hash(content))
     file_size = len(content)
-    ori_type = os.path.splitext(original_file_name)[1]
-    if ori_type is None:
-        ori_type = "unknown"
 
     # TODO: current step we do not need to convert txt files.
     new_type = ori_type
@@ -90,7 +102,8 @@ def _process_file(raw_file_path):
         ori_type=ori_type,
     )
 
-    return f"File processed and added to vectorstore. UUID: {file_uuid}"
+    show_info(f"File processed and added to vectorstore. UUID: {file_uuid}")
+    return
 
 
 # Function to get retrieved documents
@@ -157,6 +170,36 @@ def fetch_file_metadata_list(page_number, page_size):
 
     return file_metadata_list
 
+def _get_txt_content(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            text = file.read()
+        return text
+    except Exception as e:
+        show_warning(f"Error processing file: {str(e)}")
+        return ""
+
+def _get_docx_content(file_path):
+    try:
+        import docx2txt
+        text = docx2txt.process("file.docx")(file_path)
+        return text
+    except Exception as e:
+        show_warning(f"Error processing file: {str(e)}")
+        return ""
+
+def _get_pdf_content(file_path):
+    try:
+        from pypdf import PdfReader
+        with open("file.pdf", "rb") as file:
+            pdf_reader = PdfReader(file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+        return text
+    except Exception as e:
+        show_warning(f"Error processing file: {str(e)}")
+        return ""
 
 # File upload and document retrieval UI function
 def file_manager_tab():
@@ -166,7 +209,7 @@ def file_manager_tab():
         with gr.Column(scale=1):
             file_input = gr.File(
                 label="Upload text files",
-                file_types=[".txt"],
+                file_types=[".txt", ".docx", ".pdf"],
                 type="filepath",
                 file_count="multiple",
             )
