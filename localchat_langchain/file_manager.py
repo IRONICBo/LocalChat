@@ -9,8 +9,9 @@ from langchain_core.documents import Document
 from uuid import uuid4
 from tqdm import tqdm
 
-from model_manager import DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE
-from models import get_db, SessionLocal, FileMetadata
+from vectormanager import fetch_document_libraries
+from model_manager import DEFAULT_DOCUMENT_ID, DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE
+from models import DocumentLibrary, get_db, SessionLocal, FileMetadata
 from utils.alert import show_info, show_warning
 from utils.model_helper import fetch_model_names
 from settings import DEFAULT_ROOT_FILE_PATH
@@ -28,16 +29,17 @@ vectorstore = Chroma(
 retriever = vectorstore.as_retriever(search_type="similarity", k=2)
 
 
-def process_files(raw_file_paths):
+def process_files(raw_file_paths, document_id=0):
     raw_file_paths = (
         raw_file_paths if isinstance(raw_file_paths, list) else [raw_file_paths]
     )
     for raw_file_path in tqdm(raw_file_paths):
-        _process_file(raw_file_path)
+        _process_file(raw_file_path, document_id)
 
 
 # Function to process uploaded file and add to vectorstore
-def _process_file(raw_file_path):
+def _process_file(raw_file_path, document_id=0):
+    # print(f"Processing file: {raw_file_path} to document_id: {document_id}")
     original_file_name = os.path.basename(raw_file_path)
     file_uuid = str(uuid4())
     folder_name = file_uuid[:2]  # First two characters as folder name
@@ -65,9 +67,6 @@ def _process_file(raw_file_path):
     else:
         show_warning(f"Unsupported file type: {ori_type}")
         return
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
 
     file_hash = str(hash(content))
     file_size = len(content)
@@ -100,9 +99,9 @@ def _process_file(raw_file_path):
         size=file_size,
         type=new_type,
         ori_type=ori_type,
+        document_id=document_id,
     )
 
-    show_info(f"File processed and added to vectorstore. UUID: {file_uuid}")
     return
 
 
@@ -116,6 +115,10 @@ def get_all_file_metadatas(db):
     return db.query(FileMetadata).all()
 
 
+def get_all_file_metadatas_by_document_id(db, document_id=0):
+    return db.query(FileMetadata).filter(FileMetadata.document_id == document_id).all()
+
+
 def submit_file_metadata(
     uuid,
     name,
@@ -124,6 +127,7 @@ def submit_file_metadata(
     size,
     type,
     ori_type,
+    document_id,
 ):
     try:
         db = next(get_db())
@@ -135,6 +139,7 @@ def submit_file_metadata(
             size=size,
             type=type,
             ori_type=ori_type,
+            document_id=document_id,
         )
         db.add(db_filemetadata)
         db.commit()
@@ -146,9 +151,9 @@ def submit_file_metadata(
     return db_filemetadata
 
 
-def fetch_file_metadata_list(page_number, page_size):
+def fetch_file_metadata_list(page_number, page_size, document_id=0):
     db = next(get_db())
-    file_metadatas = get_all_file_metadatas(db)
+    file_metadatas = get_all_file_metadatas_by_document_id(db, document_id)
     file_metadata_list = [
         [
             file_metadata.id,
@@ -170,6 +175,7 @@ def fetch_file_metadata_list(page_number, page_size):
 
     return file_metadata_list
 
+
 def _get_txt_content(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
@@ -179,19 +185,23 @@ def _get_txt_content(file_path):
         show_warning(f"Error processing file: {str(e)}")
         return ""
 
+
 def _get_docx_content(file_path):
     try:
         import docx2txt
-        text = docx2txt.process("file.docx")(file_path)
+
+        text = docx2txt.process(file_path)
         return text
     except Exception as e:
         show_warning(f"Error processing file: {str(e)}")
         return ""
 
+
 def _get_pdf_content(file_path):
     try:
         from pypdf import PdfReader
-        with open("file.pdf", "rb") as file:
+
+        with open(file_path, "rb") as file:
             pdf_reader = PdfReader(file)
             text = ""
             for page in pdf_reader.pages:
@@ -201,12 +211,38 @@ def _get_pdf_content(file_path):
         show_warning(f"Error processing file: {str(e)}")
         return ""
 
+
+# Helper function to fetch all document libraries
+def fetch_document_pairs():
+    db = SessionLocal()
+    try:
+        libraries = db.query(DocumentLibrary).all()
+        data = [(lib.name, lib.id) for lib in libraries]
+        return data
+    finally:
+        db.close()
+
+
+def update_model_dropdown():
+    """Update Dropdown with model names."""
+    knowledge_base_names = fetch_document_pairs()
+    print(knowledge_base_names)
+    return gr.update(choices=knowledge_base_names, value=None)
+
+
 # File upload and document retrieval UI function
 def file_manager_tab():
     gr.Markdown("## Manage File")
 
     with gr.Row():
         with gr.Column(scale=1):
+            document_pairs = fetch_document_pairs()
+            print(document_pairs)
+            knowledge_base_choice = gr.Dropdown(
+                choices=document_pairs,
+                # Tips: default value is a tuple (default, 1)
+                label="Choose Knowledge Base",
+            )
             file_input = gr.File(
                 label="Upload text files",
                 file_types=[".txt", ".docx", ".pdf"],
@@ -228,7 +264,9 @@ def file_manager_tab():
             fetch_files_metadata_button = gr.Button("Refresh File Metadata")
 
         with gr.Column(scale=3):
-            model_list = fetch_file_metadata_list(DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE)
+            model_list = fetch_file_metadata_list(
+                DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE, DEFAULT_DOCUMENT_ID
+            )
             file_metadata_list = gr.Dataframe(
                 label="File Metadata",
                 headers=[
@@ -247,10 +285,10 @@ def file_manager_tab():
                 value=model_list,
             )
 
-    process_button.click(process_files, inputs=[file_input])
+    process_button.click(process_files, inputs=[file_input, knowledge_base_choice])
     fetch_files_metadata_button.click(
         fn=fetch_file_metadata_list,
-        inputs=[page_number_input, page_size_input],
+        inputs=[page_number_input, page_size_input, knowledge_base_choice],
         outputs=file_metadata_list,
     )
 

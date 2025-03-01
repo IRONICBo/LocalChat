@@ -16,7 +16,7 @@ from vectormanager import fetch_document_libraries
 # from files import files_tab
 # from monitor import monitor_tab
 from manager import manager_tab
-from models import SessionLocal, ChatbotUsage
+from models import DocumentLibrary, SessionLocal, ChatbotUsage
 from utils.alert import show_info, show_warning
 from db.settings import fetch_setting
 
@@ -188,10 +188,21 @@ def fetch_model_names():
         return ["Error fetching models"]
 
 
+# Helper function to fetch all document libraries
+def fetch_document_pairs():
+    db = SessionLocal()
+    try:
+        libraries = db.query(DocumentLibrary).all()
+        data = [(lib.Name, lib.id) for lib in libraries]
+        return data
+    finally:
+        db.close()
+
+
 def update_model_dropdown():
     """Update Dropdown with model names."""
     model_names = fetch_model_names()
-    knowledge_base_names = fetch_document_libraries()["Name"].tolist()
+    knowledge_base_names = fetch_document_pairs()
     print(knowledge_base_names)
     return gr.update(choices=model_names, value=None), gr.update(
         choices=knowledge_base_names, value=None
