@@ -53,8 +53,11 @@ def fetch_file_chunk_list(page_number_input, page_size_input, document_id, uuid)
         include=["documents"],
         where={'uuid': uuid}
     )
-    print(chunks["documents"])
-    return [chunks["documents"]]
+    # Conver to vertical list
+    chunks = [
+        [chunk] for chunk in chunks["documents"]
+    ]
+    return chunks
 
 def update_model_dropdown(document_id=0):
     """Update Dropdown with file names."""
@@ -102,7 +105,7 @@ def chunk_manager_tab():
                 headers=[
                     "Chunk",
                 ],  # Specify the headers
-                interactive=False,
+                interactive=True,
             )
 
     fetch_files_metadata_button.click(
