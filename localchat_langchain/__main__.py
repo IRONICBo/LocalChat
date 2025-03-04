@@ -7,7 +7,7 @@ import logger
 import gradio as gr
 from openai import OpenAI
 import requests
-from langchain_retrival import get_retrieved_documents, retrival_tab
+from langchain_retrival import get_retrieved_documents, get_retrieved_documents_with_collection, retrival_tab
 
 # from zotero import zotero_manager_tab
 from settings import settings_tab
@@ -31,6 +31,15 @@ def add_message(history, message):
         history.append((message["text"], None))
     return history, gr.MultimodalTextbox(value=None, interactive=False)
 
+def convert_reference_text(content, link):
+    abstract = content[:10] if len(content) > 10 else content
+    return f"""
+<details>
+  <summary>{abstract}</summary>
+  <p>{content}</p>
+  <p><strong>For more details, visit <a href="{link}" target="_blank">this reference</a>.</strong></p>
+</details>
+"""
 
 def convert_highlight_thinktext(text):
     """Convert <think> content to highlighted lines with > DeepThink:."""
@@ -84,14 +93,23 @@ def bot(
         # history_openai_format.append({"role": "assistant", "content": "数据比萨斜塔从地基到塔顶高58.36米，从地面到塔顶高55米，钟楼墙体在地面上的宽度是5.09米，在塔顶宽2.48米，总重约14453吨，重心在地基上方22.6米处。圆形地基面积为285平方米，对地面的平均压强为497千帕。2010年时倾斜角度为3.97度[17][18][19]，偏离地基外沿2.3米，顶层突出4.5米[20][21][6]。"})
     history_openai_format.append({"role": "user", "content": history[-1][0]})
 
+    knowledge_base_references = []
     # add retrival results to history
     if knowledge_base_choice is not None:
-        knowledge_base = get_retrieved_documents(question)
+        knowledge_base = get_retrieved_documents_with_collection(question, knowledge_base_choice)
         kb_data = "Current data: "
         for doc in knowledge_base:
+            print(doc)
             kb_data += doc.page_content + "\n"
 
+            # makesure this uuid key is exists
+            knowledge_base_references.append(
+                (doc.page_content, doc.metadata["uuid"])
+            )
+
         history_openai_format.append({"role": "user", "content": kb_data})
+
+
 
     print(f"Prompts: {history_openai_format}")
 
@@ -127,6 +145,14 @@ def bot(
             history[-1][1] = convert_highlight_thinktext(history[-1][1])
 
         yield history
+
+    # Add references link
+    if len(knowledge_base_references) != 0:
+        for i, (content, uuid) in enumerate(knowledge_base_references):
+            folder = uuid[:2]
+            file_path = uuid[2:]
+            history[-1][1] += "\n"
+            history[-1][1] += convert_reference_text(content, f"http://127.0.0.1:8082/static/{folder}/{file_path}")
 
     end_time = time.time()
     response_time = end_time - start_time
@@ -193,7 +219,7 @@ def fetch_document_pairs():
     db = SessionLocal()
     try:
         libraries = db.query(DocumentLibrary).all()
-        data = [(lib.Name, lib.id) for lib in libraries]
+        data = [(lib.name, lib.id) for lib in libraries]
         return data
     finally:
         db.close()
@@ -227,15 +253,17 @@ def chat_tab():
     # )
 
     with gr.Row():
+        model_names = fetch_model_names()
         model_choice = gr.Dropdown(
-            choices=["Please Refresh..."],
-            value="Please choose a model",
+            choices=model_names,
+            value=model_names[0],
             label="Choose Model",
         )
 
+        document_pairs = fetch_document_pairs()
         knowledge_base_choice = gr.Dropdown(
-            choices=["Please Refresh..."],
-            value="Please choose a knowledge base",
+            choices=document_pairs,
+            value=None,
             label="Choose Knowledge Base",
         )
 
