@@ -23,6 +23,8 @@ def create_document(db, name, description):
     db.refresh(db_document)
     return db_document
 
+def get_document(db, document_id):
+    return db.query(DocumentLibrary).filter(DocumentLibrary.id == document_id).first()
 
 def get_all_documents(db):
     return db.query(DocumentLibrary).all()
@@ -81,19 +83,19 @@ def document_manager_tab():
     with gr.Row():
         # Left side - Document submission form
         with gr.Column(scale=1):
-            gr.Markdown("<h1><center>Document Knowledge Base Operation</center></h1>")
+            gr.Markdown("## Knowledge Operation")
 
             # Document submission form
-            name_input = gr.Textbox(label="Document Name")
+            name_input = gr.Textbox(label="Knowledge Name")
             description_input = gr.Textbox(label="Document Description")
-            submit_button = gr.Button("Add Document")
+            submit_button = gr.Button("Add Knowledge")
             submit_button.click(submit_document, inputs=[name_input, description_input])
 
             gr.Markdown("---")
 
             # Add delete buttons for each document item in the list
-            document_id_input = gr.Number(label="Document ID to Delete", precision=0)
-            delete_button = gr.Button("Delete Document")
+            document_id_input = gr.Number(label="Knowledge ID to Delete", precision=0)
+            delete_button = gr.Button("Delete Knowledge")
             delete_button.click(remove_document, inputs=document_id_input)
 
         # Right side - Document list display with delete support
