@@ -6,6 +6,7 @@ from utils.alert import show_info, show_warning
 
 DEFAULT_PAGE_SIZE = 10
 DEFAULT_PAGE_NUM = 1
+DEFAULT_DOCUMENT_ID = 1
 
 
 def fetch_model_list(page_number, page_size):
@@ -69,8 +70,12 @@ def model_manager_tab():
             page_number_input = gr.Number(
                 label="Page Number", value=DEFAULT_PAGE_NUM, precision=0
             )
-            page_size_input = gr.Number(
-                label="Page Size", value=DEFAULT_PAGE_SIZE, precision=0
+            page_size_input = gr.Slider(
+                label="Page Size",
+                value=DEFAULT_PAGE_SIZE,
+                minimum=1,
+                maximum=10,
+                step=1,
             )
 
         # Right side - Document list display with delete support
