@@ -6,6 +6,8 @@ from langchain_core.documents import Document
 from uuid import uuid4
 import os
 
+from document_manager import get_db, get_document
+
 # File upload directory
 UPLOAD_DIRECTORY = "./uploaded_files"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
@@ -52,6 +54,19 @@ vectorstore = Chroma(
     persist_directory="./chroma_db",
 )
 retriever = vectorstore.as_retriever(search_type="similarity", k=2)
+
+
+def get_retrieved_documents_with_collection(question, collection_id):
+    db = next(get_db())
+    current_document = get_document(db, collection_id)
+    vectorstore = Chroma(
+        collection_name=current_document.name,
+        embedding_function=embeddings,
+        persist_directory="./chroma_db",
+    )
+    retriever = vectorstore.as_retriever(search_type="similarity", k=2)
+    results = retriever.get_relevant_documents(question)
+    return results
 
 
 def get_retrieved_documents(question):
