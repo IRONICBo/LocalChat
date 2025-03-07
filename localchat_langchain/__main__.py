@@ -19,6 +19,7 @@ from manager import manager_tab
 from models import DocumentLibrary, SessionLocal, ChatbotUsage
 from utils.alert import show_info, show_warning
 from db.settings import fetch_setting
+from settings import DEFAULT_RAG_PROMPT_TEMPLATE
 
 log = logger.Logger("localchat.log")
 sys.stdout = log
@@ -90,14 +91,13 @@ def bot(
     for human, assistant in history[:-1]:
         history_openai_format.append({"role": "user", "content": human})
         history_openai_format.append({"role": "assistant", "content": assistant})
-        # history_openai_format.append({"role": "assistant", "content": "数据比萨斜塔从地基到塔顶高58.36米，从地面到塔顶高55米，钟楼墙体在地面上的宽度是5.09米，在塔顶宽2.48米，总重约14453吨，重心在地基上方22.6米处。圆形地基面积为285平方米，对地面的平均压强为497千帕。2010年时倾斜角度为3.97度[17][18][19]，偏离地基外沿2.3米，顶层突出4.5米[20][21][6]。"})
-    history_openai_format.append({"role": "user", "content": history[-1][0]})
 
+    # RAG
+    # Add retrival results to history
     knowledge_base_references = []
-    # add retrival results to history
     if knowledge_base_choice is not None:
         knowledge_base = get_retrieved_documents_with_collection(question, knowledge_base_choice)
-        kb_data = "Current data: "
+        kb_data = ""
         for doc in knowledge_base:
             print(doc)
             kb_data += doc.page_content + "\n"
@@ -106,21 +106,23 @@ def bot(
             knowledge_base_references.append(
                 (doc.page_content, doc.metadata["uuid"])
             )
+        if kb_data != "":
+            kb_data = f"{DEFAULT_RAG_PROMPT_TEMPLATE}:{kb_data}, User Question is: {question}"
 
         history_openai_format.append({"role": "user", "content": kb_data})
-
-
+    else:
+        history_openai_format.append({"role": "user", "content": history[-1][0]})
 
     print(f"Prompts: {history_openai_format}")
 
     client = OpenAI(
         api_key="EMPTY",
-        base_url="http://localhost:11434/v1",
+        base_url="http://61.183.254.91:18787/v1",
     )
 
     try:
         completion = client.chat.completions.create(
-            model=model,
+            model="spark-lite",
             messages=history_openai_format,
             temperature=temperature,
             top_p=top_p,
@@ -160,7 +162,7 @@ def bot(
     try:
         # Calculate token count and tokens per second
         completion_without_stream = client.chat.completions.create(
-            model=model,
+            model="spark-lite",
             messages=history_openai_format,
             top_p=top_p,
             temperature=temperature,

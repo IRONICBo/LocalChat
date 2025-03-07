@@ -7,7 +7,14 @@ from utils.model_helper import fetch_model_names
 
 DEFAULT_ROOT_FILE_PATH = os.path.join(os.getcwd(), ".files")
 DEFAULT_OLLAMA_API = "http://localhost:11434"
-
+DEFAULT_RAG_PROMPT_TEMPLATE = """
+Please note that the following are the results retrieved.
+The large model should refer to these contents to generate objective and neutral answers,
+avoiding any inappropriate responses.
+Additionally, the model should assess the quality of the provided knowledge base to determine
+whether it should be used as a reference for answering the question.
+The reference content is as follows:
+"""
 
 # Helper function to fetch the setting with id=1
 def fetch_setting():
