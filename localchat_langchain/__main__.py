@@ -17,6 +17,7 @@ from vectormanager import fetch_document_libraries
 # from monitor import monitor_tab
 from manager import manager_tab
 from models import DocumentLibrary, SessionLocal, ChatbotUsage
+from utils.abstract import get_abstract
 from utils.alert import show_info, show_warning
 from db.settings import fetch_setting
 from settings import DEFAULT_RAG_PROMPT_TEMPLATE
@@ -33,7 +34,7 @@ def add_message(history, message):
     return history, gr.MultimodalTextbox(value=None, interactive=False)
 
 def convert_reference_text(content, link):
-    abstract = content[:10] if len(content) > 10 else content
+    abstract = get_abstract(content)
     return f"""
 <details>
   <summary>{abstract}</summary>
