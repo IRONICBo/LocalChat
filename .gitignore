@@ -13,3 +13,6 @@ chroma/
 chroma_db/
 uploaded_files/
 .files/
+
+# Model
+*.pkl
