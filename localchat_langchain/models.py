@@ -48,6 +48,8 @@ class FileMetadata(Base):
     __tablename__ = "file_metadata"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Relative document id. We can use it to link the file to the document
+    document_id = Column(Integer, default=0, index=True)
     uuid = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     file_hash = Column(

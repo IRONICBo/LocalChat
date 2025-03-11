@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import networkx as nx
 from textrank4zh import TextRank4Keyword, TextRank4Sentence

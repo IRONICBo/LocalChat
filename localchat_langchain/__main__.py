@@ -7,7 +7,11 @@ import logger
 import gradio as gr
 from openai import OpenAI
 import requests
-from langchain_retrival import get_retrieved_documents, get_retrieved_documents_with_collection, retrival_tab
+from langchain_retrival import (
+    get_retrieved_documents,
+    get_retrieved_documents_with_collection,
+    retrival_tab,
+)
 
 # from zotero import zotero_manager_tab
 from settings import settings_tab
@@ -33,6 +37,7 @@ def add_message(history, message):
         history.append((message["text"], None))
     return history, gr.MultimodalTextbox(value=None, interactive=False)
 
+
 def convert_reference_text(content, link):
     abstract = get_abstract(content)
     return f"""
@@ -42,6 +47,7 @@ def convert_reference_text(content, link):
   <p><strong>For more details, visit <a href="{link}" target="_blank">this reference</a>.</strong></p>
 </details>
 """
+
 
 def convert_highlight_thinktext(text):
     """Convert <think> content to highlighted lines with > DeepThink:."""
@@ -97,18 +103,20 @@ def bot(
     # Add retrival results to history
     knowledge_base_references = []
     if knowledge_base_choice is not None:
-        knowledge_base = get_retrieved_documents_with_collection(question, knowledge_base_choice)
+        knowledge_base = get_retrieved_documents_with_collection(
+            question, knowledge_base_choice
+        )
         kb_data = ""
         for doc in knowledge_base:
             print(doc)
             kb_data += doc.page_content + "\n"
 
             # makesure this uuid key is exists
-            knowledge_base_references.append(
-                (doc.page_content, doc.metadata["uuid"])
-            )
+            knowledge_base_references.append((doc.page_content, doc.metadata["uuid"]))
         if kb_data != "":
-            kb_data = f"{DEFAULT_RAG_PROMPT_TEMPLATE}:{kb_data}, User Question is: {question}"
+            kb_data = (
+                f"{DEFAULT_RAG_PROMPT_TEMPLATE}:{kb_data}, User Question is: {question}"
+            )
 
         history_openai_format.append({"role": "user", "content": kb_data})
     else:
@@ -155,7 +163,9 @@ def bot(
             folder = uuid[:2]
             file_path = uuid[2:]
             history[-1][1] += "\n"
-            history[-1][1] += convert_reference_text(content, f"http://127.0.0.1:8082/static/{folder}/{file_path}")
+            history[-1][1] += convert_reference_text(
+                content, f"http://127.0.0.1:8082/static/{folder}/{file_path}"
+            )
 
     end_time = time.time()
     response_time = end_time - start_time

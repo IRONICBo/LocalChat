@@ -16,6 +16,7 @@ whether it should be used as a reference for answering the question.
 The reference content is as follows:
 """
 
+
 # Helper function to fetch the setting with id=1
 def fetch_setting():
     db = SessionLocal()

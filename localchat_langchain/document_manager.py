@@ -23,8 +23,10 @@ def create_document(db, name, description):
     db.refresh(db_document)
     return db_document
 
+
 def get_document(db, document_id):
     return db.query(DocumentLibrary).filter(DocumentLibrary.id == document_id).first()
+
 
 def get_all_documents(db):
     return db.query(DocumentLibrary).all()

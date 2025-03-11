@@ -9,6 +9,7 @@ from langchain_core.documents import Document
 from uuid import uuid4
 from tqdm import tqdm
 
+from document_manager import get_document
 from vectormanager import fetch_document_libraries
 from model_manager import DEFAULT_DOCUMENT_ID, DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE
 from models import DocumentLibrary, get_db, SessionLocal, FileMetadata
@@ -88,7 +89,15 @@ def _process_file(raw_file_path, document_id=0):
     # Generate UUIDs for the documents
     uuids = [str(uuid4()) for _ in langchain_documents]
 
+    db = next(get_db())
+    current_document = get_document(db, document_id)
     # Add documents to vectorstore
+    vectorstore = Chroma(
+        # Sync with document_id
+        collection_name=current_document.name,
+        embedding_function=embeddings,
+        persist_directory="./chroma_db",
+    )
     vectorstore.add_documents(documents=langchain_documents, ids=uuids)
 
     submit_file_metadata(

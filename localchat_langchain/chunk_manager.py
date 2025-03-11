@@ -26,10 +26,13 @@ def fetch_document_pairs():
     finally:
         db.close()
 
+
 def refresh_file_list(document_id=0):
     db = next(get_db())
     try:
-        file_metadatas = db.query(FileMetadata).filter(FileMetadata.document_id == document_id).all()
+        file_metadatas = (
+            db.query(FileMetadata).filter(FileMetadata.document_id == document_id).all()
+        )
         data = [
             (file_metadata.name, file_metadata.uuid) for file_metadata in file_metadatas
         ]
@@ -38,6 +41,7 @@ def refresh_file_list(document_id=0):
         show_warning(f"Error fetching document libraries: {e}")
     finally:
         db.close()
+
 
 def fetch_file_chunk_list(page_number_input, page_size_input, document_id, uuid):
     """
@@ -49,15 +53,11 @@ def fetch_file_chunk_list(page_number_input, page_size_input, document_id, uuid)
 
     chromadb_client = chromadb.PersistentClient(path="./chroma_db")
     chroma_collection = chromadb_client.get_or_create_collection(current_document.name)
-    chunks = chroma_collection.get(
-        include=["documents"],
-        where={'uuid': uuid}
-    )
+    chunks = chroma_collection.get(include=["documents"], where={"uuid": uuid})
     # Conver to vertical list
-    chunks = [
-        [chunk] for chunk in chunks["documents"]
-    ]
+    chunks = [[chunk] for chunk in chunks["documents"]]
     return chunks
+
 
 def update_model_dropdown(document_id=0):
     """Update Dropdown with file names."""
@@ -85,7 +85,11 @@ def chunk_manager_tab():
                 label="Choose File",
             )
             process_button = gr.Button("Refresh File List")
-            process_button.click(update_model_dropdown, inputs=[knowledge_base_choice], outputs=file_choice)
+            process_button.click(
+                update_model_dropdown,
+                inputs=[knowledge_base_choice],
+                outputs=file_choice,
+            )
 
             page_number_input = gr.Number(
                 label="Page Number", value=DEFAULT_PAGE_NUM, precision=0
