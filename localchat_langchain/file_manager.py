@@ -14,6 +14,7 @@ from vectormanager import fetch_document_libraries
 from model_manager import DEFAULT_DOCUMENT_ID, DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE
 from models import DocumentLibrary, get_db, SessionLocal, FileMetadata
 from utils.alert import show_info, show_warning
+from utils.string_helper import calculate_special_char_ratio
 from utils.model_helper import fetch_model_names
 from settings import DEFAULT_ROOT_FILE_PATH
 
@@ -79,6 +80,10 @@ def _process_file(raw_file_path, document_id=0):
     # Split the content into documents
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
     documents = text_splitter.split_text(content)
+
+    # Filter for low quality content
+    # If blank content is too much, drop the document(check remove blank content ratio)
+    documents = [doc for doc in documents if calculate_special_char_ratio(doc) > 0.5]
 
     # Convert to LangChain Documents with metadata
     langchain_documents = [
