@@ -102,7 +102,8 @@ def bot(
     # RAG
     # Add retrival results to history
     knowledge_base_references = []
-    if knowledge_base_choice is not None:
+    # Disable knowledge base if knowledge_base_choice is None or -1
+    if knowledge_base_choice is not None and knowledge_base_choice != -1:
         knowledge_base = get_retrieved_documents_with_collection(
             question, knowledge_base_choice
         )
@@ -233,6 +234,8 @@ def fetch_document_pairs():
     try:
         libraries = db.query(DocumentLibrary).all()
         data = [(lib.name, lib.id) for lib in libraries]
+        # Add disable one
+        data.append(("Disable", -1))
         return data
     finally:
         db.close()
