@@ -20,7 +20,7 @@ from vectormanager import fetch_document_libraries
 # from files import files_tab
 # from monitor import monitor_tab
 from manager import manager_tab
-from models import DocumentLibrary, SessionLocal, ChatbotUsage
+from models import DocumentLibrary, Session, SessionLocal, ChatbotUsage
 from utils.abstract import get_abstract
 from utils.alert import show_info, show_warning
 from db.settings import fetch_setting
@@ -127,12 +127,12 @@ def bot(
 
     client = OpenAI(
         api_key="EMPTY",
-        base_url="http://61.183.254.91:18787/v1",
+        base_url="http://127.0.0.1:11434/v1",
     )
 
     try:
         completion = client.chat.completions.create(
-            model="spark-lite",
+            model=model,
             messages=history_openai_format,
             temperature=temperature,
             top_p=top_p,
@@ -167,6 +167,9 @@ def bot(
             history[-1][1] += convert_reference_text(
                 content, f"http://127.0.0.1:8082/static/{folder}/{file_path}"
             )
+
+    # Create session to save usage
+
 
     end_time = time.time()
     response_time = end_time - start_time
@@ -251,8 +254,33 @@ def update_model_dropdown():
     )
 
 
+def clear_history():
+    return [], gr.MultimodalTextbox(value=None, interactive=False)
+
+
+def create_new_session():
+    db = SessionLocal()
+    try:
+        # Create a new session
+        session = Session(
+            description="New Session",
+            history="",
+            llm="spark-lite",
+            llm_settings="",
+            similarity_threshold=0.5,
+            vector_similarity_weight=0.5,
+        )
+        db.add(session)
+        db.commit()
+        return session.id
+    finally:
+        db.close()
+
 def chat_tab():
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
+    # Create a new state variable to store the chat history
+
+    session_state = gr.State()
 
     chat_input = gr.MultimodalTextbox(
         interactive=True,
@@ -269,26 +297,30 @@ def chat_tab():
     # )
 
     with gr.Row():
-        model_names = fetch_model_names()
-        model_choice = gr.Dropdown(
-            choices=model_names,
-            value=model_names[0],
-            label="Choose Model",
-        )
+        with gr.Column(scale=3):
+            model_names = fetch_model_names()
+            model_choice = gr.Dropdown(
+                choices=model_names,
+                value=model_names[0],
+                label="Choose Model",
+            )
 
-        document_pairs = fetch_document_pairs()
-        knowledge_base_choice = gr.Dropdown(
-            choices=document_pairs,
-            value=None,
-            label="Choose Knowledge Base",
-        )
+            document_pairs = fetch_document_pairs()
+            knowledge_base_choice = gr.Dropdown(
+                choices=document_pairs,
+                value=None,
+                label="Choose Knowledge Base",
+            )
 
-        update_button = gr.Button("Refresh")
-        update_button.click(
-            fn=update_model_dropdown,
-            inputs=[],
-            outputs=[model_choice, knowledge_base_choice],
-        )
+        with gr.Column(scale=1):
+            update_button = gr.Button("Refresh Config")
+            update_button.click(
+                fn=update_model_dropdown,
+                inputs=[],
+                outputs=[model_choice, knowledge_base_choice],
+            )
+
+            clear = gr.ClearButton([chat_input, chatbot], value="Clear History")
 
     chat_msg = chat_input.submit(
         add_message, [chatbot, chat_input], [chatbot, chat_input]
