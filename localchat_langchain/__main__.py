@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import re
@@ -74,8 +75,14 @@ def bot(
     history,
     model="qwen:0.5b",
     knowledge_base_choice=None,
+    session_state=None,
 ):
     system_prompt, _, top_k, top_p, temperature, max_tokens = fetch_setting()
+
+    if session_state is None:
+        session_state = create_new_session()
+    if isinstance(session_state, gr.State):
+        session_state = session_state.value
 
     if knowledge_base_choice is None:
         show_warning(
@@ -169,6 +176,9 @@ def bot(
             )
 
     # Create session to save usage
+    history_json = json.dumps(history)
+    print(history_json)
+    update_session_state(session_state, history_json)
 
 
     end_time = time.time()
@@ -177,7 +187,7 @@ def bot(
     try:
         # Calculate token count and tokens per second
         completion_without_stream = client.chat.completions.create(
-            model="spark-lite",
+            model=model,
             messages=history_openai_format,
             top_p=top_p,
             temperature=temperature,
@@ -257,15 +267,18 @@ def update_model_dropdown():
 def clear_history():
     return [], gr.MultimodalTextbox(value=None, interactive=False)
 
+def create_session_state():
+    session_id = create_new_session()
+    return gr.State(session_id)
 
 def create_new_session():
     db = SessionLocal()
     try:
         # Create a new session
         session = Session(
-            description="New Session",
+            description="",
             history="",
-            llm="spark-lite",
+            llm="",
             llm_settings="",
             similarity_threshold=0.5,
             vector_similarity_weight=0.5,
@@ -276,11 +289,27 @@ def create_new_session():
     finally:
         db.close()
 
+# Update session state
+# In current senario, we just need to cover all of the history to current session
+# TODO: support save session config
+def update_session_state(session_id, session_history):
+    db = SessionLocal()
+    try:
+        session = db.query(Session).filter(Session.id == session_id).first()
+        if session and session_history:
+            session.history = session_history
+            db.commit()
+            return session.id
+        else:
+            return None
+    finally:
+        db.close()
+
 def chat_tab():
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
     # Create a new state variable to store the chat history
-
-    session_state = gr.State()
+    session_id = create_new_session()
+    session_state = gr.State(session_id)
 
     chat_input = gr.MultimodalTextbox(
         interactive=True,
@@ -321,13 +350,14 @@ def chat_tab():
             )
 
             clear = gr.ClearButton([chat_input, chatbot], value="Clear History")
+            clear.click(fn=create_session_state, inputs=[], outputs=[session_state])
 
     chat_msg = chat_input.submit(
         add_message, [chatbot, chat_input], [chatbot, chat_input]
     )
     bot_msg = chat_msg.then(
         bot,
-        [chatbot, model_choice, knowledge_base_choice],
+        [chatbot, model_choice, knowledge_base_choice, session_state],
         [chatbot],
         api_name="bot_response",
     )
