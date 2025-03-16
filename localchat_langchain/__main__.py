@@ -76,13 +76,24 @@ def bot(
     model="qwen:0.5b",
     knowledge_base_choice=None,
     session_state=None,
+    session_history_choice_id=None,
 ):
     system_prompt, _, top_k, top_p, temperature, max_tokens = fetch_setting()
 
-    if session_state is None:
-        session_state = create_new_session()
-    if isinstance(session_state, gr.State):
-        session_state = session_state.value
+    print(session_history_choice_id)
+
+    if session_history_choice_id is None or session_history_choice_id == -1:
+        if session_state is None:
+            session_state = create_new_session()
+        if isinstance(session_state, gr.State):
+            session_state = session_state.value
+    else:
+        session_state = session_history_choice_id
+        # TODO: move these logic to dropdown hooks
+        history = get_session_history(session_state)
+        history = json.loads(history)
+        print("Session history loaded {session_state} with history {history}")
+        show_info(f"Session {session_state} loaded.")
 
     if knowledge_base_choice is None:
         show_warning(
@@ -180,7 +191,6 @@ def bot(
     print(history_json)
     update_session_state(session_state, history_json)
 
-
     end_time = time.time()
     response_time = end_time - start_time
 
@@ -258,18 +268,35 @@ def update_model_dropdown():
     """Update Dropdown with model names."""
     model_names = fetch_model_names()
     knowledge_base_names = fetch_document_pairs()
+    session_histories = fetch_session_history_pairs()
     print(knowledge_base_names)
     return gr.update(choices=model_names, value=None), gr.update(
         choices=knowledge_base_names, value=None
-    )
+    ), gr.update(choices=session_histories, value=-1)
 
+
+# Helper function to fetch all dialogue history pairs (for dropdown etc.)
+def fetch_session_history_pairs():
+    db = SessionLocal()
+    try:
+        sessions = db.query(Session).order_by(Session.created_at.desc()).all()
+        data = [
+            (f"{session.description or 'No description'} (ID: {session.id})", session.id)
+            for session in sessions
+        ]
+        data.insert(0, ("Disable", -1))
+        return data
+    finally:
+        db.close()
 
 def clear_history():
     return [], gr.MultimodalTextbox(value=None, interactive=False)
 
+
 def create_session_state():
     session_id = create_new_session()
     return gr.State(session_id)
+
 
 def create_new_session():
     db = SessionLocal()
@@ -289,6 +316,7 @@ def create_new_session():
     finally:
         db.close()
 
+
 # Update session state
 # In current senario, we just need to cover all of the history to current session
 # TODO: support save session config
@@ -300,6 +328,18 @@ def update_session_state(session_id, session_history):
             session.history = session_history
             db.commit()
             return session.id
+        else:
+            return None
+    finally:
+        db.close()
+
+
+def get_session_history(session_id):
+    db = SessionLocal()
+    try:
+        session = db.query(Session).filter(Session.id == session_id).first()
+        if session:
+            return session.history
         else:
             return None
     finally:
@@ -341,6 +381,13 @@ def chat_tab():
                 label="Choose Knowledge Base",
             )
 
+            session_history_pairs = fetch_session_history_pairs()
+            session_history_choice = gr.Dropdown(
+                choices=session_history_pairs,
+                value=None,
+                label="Choose Session",
+            )
+
         with gr.Column(scale=1):
             update_button = gr.Button("Refresh Config")
             update_button.click(
@@ -357,7 +404,7 @@ def chat_tab():
     )
     bot_msg = chat_msg.then(
         bot,
-        [chatbot, model_choice, knowledge_base_choice, session_state],
+        [chatbot, model_choice, knowledge_base_choice, session_state, session_history_choice],
         [chatbot],
         api_name="bot_response",
     )
