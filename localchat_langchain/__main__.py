@@ -9,9 +9,11 @@ import gradio as gr
 from openai import OpenAI
 import requests
 from langchain_retrival import (
+    get_question_documents_with_collection,
     get_retrieved_documents,
     get_retrieved_documents_with_collection,
     retrival_tab,
+    save_question_documents_with_collection,
 )
 
 # from zotero import zotero_manager_tab
@@ -110,6 +112,10 @@ def bot(
 
     # get question
     question = history[-1][0]
+    similarity_question = get_question_documents_with_collection(question)
+    show_warning(f"Similarity question: {similarity_question}")
+
+    save_question_documents_with_collection(question)
     print(f"Question: {question}")
 
     history_openai_format = []
@@ -270,9 +276,11 @@ def update_model_dropdown():
     knowledge_base_names = fetch_document_pairs()
     session_histories = fetch_session_history_pairs()
     print(knowledge_base_names)
-    return gr.update(choices=model_names, value=None), gr.update(
-        choices=knowledge_base_names, value=None
-    ), gr.update(choices=session_histories, value=-1)
+    return (
+        gr.update(choices=model_names, value=None),
+        gr.update(choices=knowledge_base_names, value=None),
+        gr.update(choices=session_histories, value=-1),
+    )
 
 
 # Helper function to fetch all dialogue history pairs (for dropdown etc.)
@@ -281,13 +289,17 @@ def fetch_session_history_pairs():
     try:
         sessions = db.query(Session).order_by(Session.created_at.desc()).all()
         data = [
-            (f"{session.description or 'No description'} (ID: {session.id})", session.id)
+            (
+                f"{session.description or 'No description'} (ID: {session.id})",
+                session.id,
+            )
             for session in sessions
         ]
         data.insert(0, ("Disable", -1))
         return data
     finally:
         db.close()
+
 
 def clear_history():
     return [], gr.MultimodalTextbox(value=None, interactive=False)
@@ -344,6 +356,7 @@ def get_session_history(session_id):
             return None
     finally:
         db.close()
+
 
 def chat_tab():
     chatbot = gr.Chatbot([], elem_id="chatbot", bubble_full_width=False)
@@ -404,7 +417,13 @@ def chat_tab():
     )
     bot_msg = chat_msg.then(
         bot,
-        [chatbot, model_choice, knowledge_base_choice, session_state, session_history_choice],
+        [
+            chatbot,
+            model_choice,
+            knowledge_base_choice,
+            session_state,
+            session_history_choice,
+        ],
         [chatbot],
         api_name="bot_response",
     )

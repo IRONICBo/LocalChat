@@ -69,6 +69,40 @@ def get_retrieved_documents_with_collection(question, collection_id):
     return results
 
 
+def save_question_documents_with_collection(question):
+    sys_user_question_document = "user_question"
+    vectorstore = Chroma(
+        collection_name=sys_user_question_document,
+        embedding_function=embeddings,
+        persist_directory="./sys_chroma_db",
+    )
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+    documents = text_splitter.split_text(question)
+    documents = [doc for doc in documents]
+
+    langchain_documents = [
+        Document(page_content=doc, metadata={"source": question}) for doc in documents
+    ]
+
+    # Generate UUIDs for the documents
+    uuids = [str(uuid4()) for _ in langchain_documents]
+    vectorstore.add_documents(documents=langchain_documents, ids=uuids)
+
+
+def get_question_documents_with_collection(question):
+    sys_user_question_document = "user_question"
+    vectorstore = Chroma(
+        collection_name=sys_user_question_document,
+        embedding_function=embeddings,
+        persist_directory="./sys_chroma_db",
+    )
+    retriever = vectorstore.as_retriever(
+        search_type="similarity", k=3, score_threshold=0.6
+    )
+    results = retriever.get_relevant_documents(question)
+    return results
+
+
 def get_retrieved_documents(question):
     results = retriever.get_relevant_documents(question)
     return results
