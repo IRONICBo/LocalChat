@@ -9,7 +9,7 @@ def fetch_session_pairs():
     db = next(get_db())
     try:
         sessions = db.query(Session).all()
-        data = [(session.description, session.id) for session in sessions]
+        data = [(f"Desc: {session.description} ID: {session.id}", session.id) for session in sessions]
         return data
     finally:
         db.close()
