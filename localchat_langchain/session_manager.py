@@ -4,15 +4,20 @@ from sqlalchemy.orm import Session as DBSession
 from model_manager import DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE
 from models import Session, get_db
 
+
 # Helper function to fetch all session records
 def fetch_session_pairs():
     db = next(get_db())
     try:
         sessions = db.query(Session).all()
-        data = [(f"Desc: {session.description} ID: {session.id}", session.id) for session in sessions]
+        data = [
+            (f"Desc: {session.description} ID: {session.id}", session.id)
+            for session in sessions
+        ]
         return data
     finally:
         db.close()
+
 
 def get_session_history(session_id):
     db = next(get_db())
@@ -24,6 +29,7 @@ def get_session_history(session_id):
             return None
     finally:
         db.close()
+
 
 def fetch_session_list(page_number_input, page_size_input, session_id):
     """
@@ -41,8 +47,8 @@ def fetch_session_list(page_number_input, page_size_input, session_id):
             current_session.id,
             current_session.description,
             # TODO: fix with role
-            his[0], # user
-            his[1], # content
+            his[0],  # user
+            his[1],  # content
             current_session.llm,
             current_session.llm_settings,
             current_session.similarity_threshold,
@@ -56,7 +62,15 @@ def fetch_session_list(page_number_input, page_size_input, session_id):
 
 
 # Update session details function
-def update_session(session_id, description, llm, llm_settings, similarity_threshold, vector_similarity_weight, history):
+def update_session(
+    session_id,
+    description,
+    llm,
+    llm_settings,
+    similarity_threshold,
+    vector_similarity_weight,
+    history,
+):
     db = next(get_db())
     try:
         session = db.query(Session).filter(Session.id == session_id).first()
@@ -73,6 +87,7 @@ def update_session(session_id, description, llm, llm_settings, similarity_thresh
             return f"Session {session_id} not found!"
     finally:
         db.close()
+
 
 # Session management UI function
 def session_manager_tab():
@@ -98,7 +113,6 @@ def session_manager_tab():
             )
             fetch_files_metadata_button = gr.Button("Refresh Session Query Param")
 
-
         with gr.Column(scale=3):
             session_list = gr.Dataframe(
                 label="Session",
@@ -121,6 +135,7 @@ def session_manager_tab():
             inputs=[page_number_input, page_size_input, session_choice],
             outputs=session_list,
         )
+
 
 # Main Gradio app
 if __name__ == "__main__":

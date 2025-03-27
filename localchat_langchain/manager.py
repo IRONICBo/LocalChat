@@ -2,6 +2,7 @@ import gradio as gr
 
 from document_manager import document_manager_tab
 from file_manager import file_manager_tab
+from session_manager import session_manager_tab
 from model_manager import model_manager_tab
 from chunk_manager import chunk_manager_tab
 
@@ -18,6 +19,9 @@ def manager_tab():
 
     with gr.Tab(label="Chunk Manager"):
         chunk_manager_tab()
+
+    with gr.Tab(label="Session Manager"):
+        session_manager_tab()
 
 
 if __name__ == "__main__":
