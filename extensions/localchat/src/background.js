@@ -1,5 +1,9 @@
 'use strict';
 
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
+
 // With background scripts you can communicate with popup
 // and contentScript files.
 // For more information on background script,

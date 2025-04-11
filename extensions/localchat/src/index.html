@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="app.title">Side-AI</title>
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/ai-chat.css">
+    <link rel="stylesheet" href="css/translate.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="external/default.min.css" id="light-theme-highlight" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="external/vs2015.min.css" id="dark-theme-highlight" media="(prefers-color-scheme: dark)">
+    <script src="js/error-handler.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-top">
+                <button id="ai-chat-btn" class="sidebar-btn active" data-i18n-title="app.sidebar.chat">
+                    <img src="assets/svg/chat.svg" alt="Chat" class="sidebar-icon">
+                </button>
+                <button id="translate-btn" class="sidebar-btn" data-i18n-title="app.sidebar.translate">
+                    <img src="assets/svg/translate.svg" alt="Translate" class="sidebar-icon">
+                </button>
+            </div>
+            <div class="sidebar-bottom">
+                <button id="settings-btn" class="sidebar-btn" data-i18n-title="app.sidebar.settings">
+                    <img src="assets/svg/settings.svg" alt="Settings" class="sidebar-icon">
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div id="ai-chat-content" class="content-section active">
+                <!-- AI Chat content will be loaded here -->
+            </div>
+            <div id="translate-content" class="content-section">
+                <!-- Translate content will be loaded here -->
+            </div>
+            <div id="settings-content" class="content-section">
+                <!-- Settings content will be loaded here -->
+            </div>
+        </div>
+    </div>
+    <script src="external/highlight.min.js"></script>
+    <script src="external/marked.min.js"></script>
+    <script src="external/purify.js"></script>
+    <script src="js/index.js" type="module"></script>
+</body>
+</html> 
