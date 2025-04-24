@@ -92,12 +92,6 @@ export async function loadSettings(container) {
                                 <span data-i18n="settings.sections.localchat.streaming">Enable auto capture</span>
                             </label>
                         </div>
-                        <div class="settings-item">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="use-streaming" checked>
-                                <span data-i18n="settings.sections.localchat.streaming">Enable streaming responses</span>
-                            </label>
-                        </div>
                     </div>
                     <div class="settings-section">
                         <h3 data-i18n="settings.sections.filtered.title">Filtered Settings</h3>
