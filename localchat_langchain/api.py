@@ -11,8 +11,8 @@ import os
 from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel
 
-from settings import DEFAULT_ROOT_FILE_PATH
-from models import HtmlMetadata, SessionLocal
+from settings import DEFAULT_OLLAMA_API, DEFAULT_ROOT_FILE_PATH
+from models import HtmlMetadata, LocalChatSettings, SessionLocal
 
 app = FastAPI(
     title="ChromaDB Text Upload and Search API",
@@ -45,11 +45,33 @@ vectorstore = Chroma(
     persist_directory="./chroma_db_tmp",
 )
 
+@app.get(
+    "/config",
+    summary="Get configuration",
+    description="Get the LocalChat configuration settings.",
+)
+def get_config():
+    db = SessionLocal()
+    try:
+        config = db.query(LocalChatSettings).filter(LocalChatSettings.id == 1).first()
+        if not config:
+            raise HTTPException(status_code=404, detail="Configuration not found")
+        return {
+            "system_prompt": config.system_prompt,
+            "llm": config.llm,
+            "top_k": config.top_k,
+            "top_p": config.top_p,
+            "temperature": config.temperature,
+            "chat_token_limit": config.chat_token_limit,
+            "ollama_api": DEFAULT_OLLAMA_API,
+            "file_root_path": DEFAULT_ROOT_FILE_PATH
+        }
+    finally:
+        db.close()
 
 class UploadData(BaseModel):
     content: str
     url: str
-
 
 @app.post(
     "/upload",
