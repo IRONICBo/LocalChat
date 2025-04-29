@@ -231,7 +231,6 @@ export async function loadSettings(container) {
         </div>
     `;
 
-    // 添加选项卡切换功能
     const tabButtons = container.querySelectorAll('.tab-button');
     const tabContents = container.querySelectorAll('.tab-content');
 
@@ -239,11 +238,9 @@ export async function loadSettings(container) {
         button.addEventListener('click', () => {
             const tabId = button.getAttribute('data-tab');
 
-            // 移除所有选项卡的活动状态
             tabButtons.forEach(btn => btn.classList.remove('active'));
             tabContents.forEach(content => content.style.display = 'none');
 
-            // 激活当前选项卡
             button.classList.add('active');
             document.getElementById(`${tabId}-tab`).style.display = 'block';
         });
