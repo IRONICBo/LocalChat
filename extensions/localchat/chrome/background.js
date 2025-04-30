@@ -24,16 +24,53 @@ const defaultSettings = {
 let currentSettings = { ...defaultSettings };
 
 // load settings
-function loadSettings() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['settings'], (result) => {
-            if (result.settings) {
-                // merge default settings and stored settings
-                currentSettings = { ...defaultSettings, ...result.settings };
-            }
-            resolve(currentSettings);
-        });
+// function loadSettings() {
+//     return new Promise((resolve) => {
+//         chrome.storage.local.get(['settings'], (result) => {
+//             if (result.settings) {
+//                 // merge default settings and stored settings
+//                 currentSettings = { ...defaultSettings, ...result.settings };
+//             }
+//             resolve(currentSettings);
+//         });
+//     });
+// }
+
+async function loadSettings() {
+    // Get settings from local storage
+    const result = await new Promise((resolve) => {
+        chrome.storage.local.get(['settings'], resolve);
     });
+
+    if (result.settings) {
+        currentSettings = { ...defaultSettings, ...result.settings };
+    }
+
+    // Get settings from server
+    let serverSettings;
+    try {
+        const response = await fetch('http://127.0.0.1:8082/config');
+        serverSettings = await response.json();
+        console.log("serverSettings", serverSettings)
+    } catch (error) {
+        console.error('Failed to fetch server settings:', error);
+        serverSettings = {};
+    }
+
+    // Merge settings with server taking precedence
+    currentSettings = {
+        ...currentSettings,
+        systemPrompt: serverSettings.system_prompt || defaultSettings.systemPrompt,
+        ollamaApi: serverSettings.ollama_api || defaultSettings.ollamaUrl,
+        defaultModel: serverSettings.llm || defaultSettings.ollamaModel,
+        topK: serverSettings.top_k || 40,
+        topP: serverSettings.top_p || 0.9,
+        temperature: serverSettings.temperature || 0.1,
+        chatTokenLimit: serverSettings.chat_token_limit || 4000,
+        fileRootPath: serverSettings.file_root_path || ''
+    };
+
+    return currentSettings;
 }
 
 // save settings
