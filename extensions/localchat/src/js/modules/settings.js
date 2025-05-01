@@ -3,7 +3,30 @@ import { t, getCurrentLanguage, loadLanguage, getAvailableLanguages } from '../u
 
 // Load settings
 export async function loadSettings(container) {
-    const settings = await getSettings();
+    // Get settings from both local storage and server
+    const localSettings = await getSettings();
+    let serverSettings;
+    try {
+        const response = await fetch('http://127.0.0.1:8082/config');
+        serverSettings = await response.json();
+        console.log("serverSettings", serverSettings)
+    } catch (error) {
+        console.error('Failed to fetch server settings:', error);
+        serverSettings = {};
+    }
+
+    // Merge settings with server taking precedence
+    const settings = {
+        ...localSettings,
+        systemPrompt: serverSettings.system_prompt || localSettings.systemPrompt,
+        ollamaApi: serverSettings.ollama_api || localSettings.ollamaUrl,
+        defaultModel: serverSettings.llm || localSettings.ollamaModel,
+        topK: serverSettings.top_k || 40,
+        topP: serverSettings.top_p || 0.9,
+        temperature: serverSettings.temperature || 0.1,
+        chatTokenLimit: serverSettings.chat_token_limit || 4000,
+        fileRootPath: serverSettings.file_root_path || ''
+    };
 
     // Get language options
     const languageOptions = await generateLanguageOptions();
@@ -74,37 +97,48 @@ export async function loadSettings(container) {
                             <div class="url-input-container">
                                 <div class="url-part">
                                     <label for="localchat-host" class="small-label" data-i18n="settings.sections.localchat.url.host">Host</label>
-                                    <input type="text" id="localchat-host" placeholder="http://127.0.0.1">
+                                    <input type="text" id="localchat-host" placeholder="http://localhost">
                                 </div>
                                 <div class="url-part small">
                                     <label for="localchat-port" class="small-label" data-i18n="settings.sections.localchat.url.port">Port</label>
-                                    <input type="text" id="localchat-port" placeholder="18080">
-                                </div>
-                                <div class="url-part">
-                                    <label for="localchat-path" class="small-label" data-i18n="settings.sections.localchat.url.path">Path</label>
-                                    <input type="text" id="localchat-path" placeholder="/api/generate">
+                                    <input type="text" id="localchat-port" placeholder="11434">
                                 </div>
                             </div>
+                        </div>
+                        <div class="settings-item">
+                            <label>Model</label>
+                            <input type="text" id="llm-model" placeholder="deepseek-r1:1.5b">
+                        </div>
+                        <div class="settings-item">
+                            <label>System Prompt</label>
+                            <textarea id="system-prompt" placeholder="You are a helpful assistant. Please assist the user with their inquiries."></textarea>
+                        </div>
+                        <div class="settings-item">
+                            <label>Top K</label>
+                            <input type="number" id="top-k" placeholder="40">
+                        </div>
+                        <div class="settings-item">
+                            <label>Top P</label>
+                            <input type="number" id="top-p" step="0.1" placeholder="0.9">
+                        </div>
+                        <div class="settings-item">
+                            <label>Temperature</label>
+                            <input type="number" id="temperature" step="0.1" placeholder="0.1">
+                        </div>
+                        <div class="settings-item">
+                            <label>Chat Token Limit</label>
+                            <input type="number" id="chat-token-limit" placeholder="4000">
+                        </div>
+                        <div class="settings-item">
+                            <label>File Root Path</label>
+                            <input type="text" id="file-root-path" placeholder="/path/to/files">
                         </div>
                         <div class="settings-item">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="use-streaming" checked>
-                                <span data-i18n="settings.sections.localchat.streaming">Enable auto capture</span>
+                                <span data-i18n="settings.sections.localchat.streaming">Enable streaming responses</span>
                             </label>
                         </div>
-                    </div>
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.sections.filtered.title">Filtered Settings</h3>
-                        <div class="settings-item">
-                            <label data-i18n="settings.sections.filtered.url.label">LocalChat URL</label>
-                            <div class="url-input-container">
-                                <div class="url-part">
-                                    <label for="filtered-host" class="small-label" data-i18n="settings.sections.localchat.url.host">Host</label>
-                                    <input type="text" id="filtered-host" placeholder="http://127.0.0.1">
-                                </div>
-                            </div>
-                        </div>
-                        <div id="connection-status" class="connection-status success">Please use , to split URLs</div>
                     </div>
                 </div>
 
@@ -117,15 +151,15 @@ export async function loadSettings(container) {
                             <div class="url-input-container">
                                 <div class="url-part">
                                     <label for="ollama-host" class="small-label" data-i18n="settings.sections.ollama.url.host">Host</label>
-                                    <input type="text" id="ollama-host" placeholder="http://192.168.5.99">
+                                    <input type="text" id="ollama-host" placeholder="http://192.168.5.99" disabled>
                                 </div>
                                 <div class="url-part small">
                                     <label for="ollama-port" class="small-label" data-i18n="settings.sections.ollama.url.port">Port</label>
-                                    <input type="text" id="ollama-port" placeholder="11434">
+                                    <input type="text" id="ollama-port" placeholder="11434" disabled>
                                 </div>
                                 <div class="url-part">
                                     <label for="ollama-path" class="small-label" data-i18n="settings.sections.ollama.url.path">Path</label>
-                                    <input type="text" id="ollama-path" placeholder="/api/generate">
+                                    <input type="text" id="ollama-path" placeholder="/api/generate" disabled>
                                 </div>
                             </div>
                         </div>
@@ -141,14 +175,44 @@ export async function loadSettings(container) {
                             </div>
                         </div>
                         <div class="settings-item">
+                            <label for="top-k" data-i18n="settings.sections.ollama.topk.label">Top K</label>
+                            <div class="model-select-container">
+                                <input type="number" id="top-k" placeholder="40" disabled>
+                            </div>
+                        </div>
+                        <div class="settings-item">
+                            <label for="top-p" data-i18n="settings.sections.ollama.topp.label">Top P</label>
+                            <div class="model-select-container">
+                                <input type="number" id="top-p" step="0.1" placeholder="0.9" disabled>
+                            </div>
+                        </div>
+                        <div class="settings-item">
+                            <label for="temperature" data-i18n="settings.sections.ollama.temperature.label">Temperature</label>
+                            <div class="model-select-container">
+                                <input type="number" id="temperature" step="0.1" placeholder="0.1" disabled>
+                            </div>
+                        </div>
+                        <div class="settings-item">
+                            <label for="chat-token-limit" data-i18n="settings.sections.ollama.tokenlimit.label">Chat Token Limit</label>
+                            <div class="model-select-container">
+                                <input type="number" id="chat-token-limit" placeholder="4000" disabled>
+                            </div>
+                        </div>
+                        <div class="settings-item">
+                            <label for="file-root-path" data-i18n="settings.sections.ollama.filepath.label">File Root Path</label>
+                            <div class="model-select-container">
+                                <input type="text" id="file-root-path" placeholder="/path/to/files" disabled>
+                            </div>
+                        </div>
+                        <div class="settings-item">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="use-proxy">
+                                <input type="checkbox" id="use-proxy" disabled>
                                 <span data-i18n="settings.sections.ollama.proxy">Use CORS proxy (try this if you get 403 errors)</span>
                             </label>
                         </div>
                         <div class="settings-item">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="use-streaming" checked>
+                                <input type="checkbox" id="use-streaming" checked disabled>
                                 <span data-i18n="settings.sections.ollama.streaming">Enable streaming responses</span>
                             </label>
                         </div>
