@@ -10,6 +10,8 @@ from trafilatura import extract
 import os
 from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel
+from typing import Optional
+from models import Session
 
 from settings import DEFAULT_OLLAMA_API, DEFAULT_ROOT_FILE_PATH
 from models import HtmlMetadata, LocalChatSettings, SessionLocal
@@ -44,6 +46,32 @@ vectorstore = Chroma(
     embedding_function=embeddings,
     persist_directory="./chroma_db_tmp",
 )
+
+
+class SessionHistory(BaseModel):
+    session_id: Optional[int] = None 
+    history: str
+
+@app.post(
+    "/session/history",
+    summary="Update session history",
+    description="Create a new session or update existing session history.",
+)
+async def update_history(data: SessionHistory):
+    if data.session_id is None:
+        # Create new session if no session_id provided
+        session_id = create_new_session()
+    else:
+        session_id = data.session_id
+        
+    # Update the session history
+    updated_id = update_session_state(session_id, data.history)
+    
+    if updated_id is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    return {"session_id": updated_id}
+
 
 @app.get(
     "/config",
