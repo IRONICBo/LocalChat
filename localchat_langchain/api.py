@@ -47,13 +47,42 @@ vectorstore = Chroma(
     persist_directory="./chroma_db_tmp",
 )
 
+class ExtractData(BaseModel):
+    content: str
+
+@app.post(
+    "/extract",
+    summary="Extract content", 
+    description="Extract main content from HTML without saving to database.",
+)
+async def extract_content(data: ExtractData):
+    if not data.content:
+        raise HTTPException(
+            status_code=400, 
+            detail="Content field is required in the request."
+        )
+
+    markdown_content = extract(data.content)
+
+    if markdown_content is None:
+        raise HTTPException(
+            status_code=400, 
+            detail="Failed to extract content from the HTML."
+        )
+
+    return JSONResponse(
+        content={
+            "content": markdown_content
+        }
+    )
+
 
 class SessionHistory(BaseModel):
     session_id: Optional[int] = None 
     history: str
 
 @app.post(
-    "/session/history",
+    "/history",
     summary="Update session history",
     description="Create a new session or update existing session history.",
 )
