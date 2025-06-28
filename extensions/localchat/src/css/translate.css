@@ -84,3 +84,84 @@
     justify-content: flex-end;
     gap: 8px;
 }
+
+.translate-result {
+    width: 100%;
+    height: 32vh;
+    max-height: 32vh;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 14px;
+    overflow-y: auto;
+}
+
+.translate-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.translate-button {
+    padding: 10px 16px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.translate-button:hover {
+    background-color: var(--primary-hover-color);
+}
+
+.translate-loading {
+    color: var(--text-secondary-color);
+    font-style: italic;
+}
+
+.translate-error {
+    color: var(--error-color);
+}
+
+.translate-empty {
+    color: var(--text-secondary-color);
+    font-style: italic;
+}
+
+.translate-info {
+    color: var(--text-secondary-color);
+}
+
+.copy-notification {
+    position: absolute;
+    top: -30px;
+    right: 0;
+    background-color: var(--success-bg);
+    color: var(--success-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.translate-text-area .translate-actions {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    background-color: var(--card-bg);
+    padding: 2px;
+    z-index: 10;
+}
