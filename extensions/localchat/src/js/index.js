@@ -84,6 +84,7 @@ init();
 async function initApplication() {
     console.log('Starting initialization...');
 
+    // 确保DOM已加载
     if (document.readyState === 'loading') {
         console.log('Waiting for DOM to be ready...');
         await new Promise(resolve => {
