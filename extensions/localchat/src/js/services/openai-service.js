@@ -124,3 +124,103 @@ export async function sendMessageToOpenAI(message, history = [], systemPrompt = 
         throw error;
     }
 }
+
+// Parse OpenAI streaming response
+export function parseOpenAIStreamingResponse(chunk) {
+    try {
+        if (chunk.includes('[DONE]')) {
+            return null;
+        }
+
+        if (!chunk.trim().startsWith('data:')) {
+            return null;
+        }
+
+        let jsonStr = chunk.substring(chunk.indexOf('data:') + 5).trim();
+
+        try {
+            const data = JSON.parse(jsonStr);
+
+            if (data.choices && data.choices.length > 0 && data.choices[0].delta && data.choices[0].delta.content) {
+                return data.choices[0].delta.content;
+            }
+
+            if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+                return data.choices[0].message.content;
+            }
+
+            return null;
+        } catch (jsonError) {
+            const contentMatch = jsonStr.match(/"content":"([^"]*)"/);
+            if (contentMatch && contentMatch[1]) {
+                return contentMatch[1];
+            }
+
+            return null;
+        }
+    } catch (error) {
+        console.error('Error parsing OpenAI streaming response:', error, 'Raw chunk:', chunk);
+        return null;
+    }
+}
+
+// Test OpenAI API connection
+export async function testOpenAIConnection(apiKey, baseUrl) {
+    try {
+        const url = baseUrl + '/models';
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.error?.message || `API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error testing OpenAI connection:', error);
+        throw error;
+    }
+}
+
+// Get available OpenAI models
+export async function getOpenAIModels(apiKey, baseUrl) {
+    try {
+        const url = baseUrl + '/models';
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.error?.message || `API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Filter for chat models
+        const chatModels = data.data.filter(model =>
+            model.id.includes('gpt') ||
+            model.id.includes('claude') ||
+            model.id.includes('llama')
+        );
+
+        return chatModels.map(model => ({
+            id: model.id,
+            name: model.id
+        }));
+    } catch (error) {
+        console.error('Error fetching OpenAI models:', error);
+        throw error;
+    }
+}
