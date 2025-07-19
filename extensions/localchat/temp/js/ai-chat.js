@@ -442,4 +442,668 @@ export function loadAIChat(container) {
             streamingMessageElement = null;
         }
     }
+
+    // Auto-resize textarea
+    chatInput.addEventListener('input', () => {
+        chatInput.style.height = 'auto';
+        chatInput.style.height = (chatInput.scrollHeight) + 'px';
+    });
+
+    // Create new chat
+    async function createNewChat() {
+        // Clear chat history
+        chatHistory = [];
+
+        // Generate new chat ID
+        currentChatId = Date.now().toString();
+
+        // Clear chat messages
+        chatMessages.innerHTML = '';
+
+        // Add welcome message
+        addWelcomeMessage();
+
+        // Save current chat ID
+        await chrome.storage.local.set({ lastActiveChatId: currentChatId });
+
+        // Close history popup if open
+        historyPopup.classList.remove('show');
+    }
+
+    // Load chat
+    async function loadChat(chatId) {
+        try {
+            // Get chat from storage
+            const result = await chrome.storage.local.get(['chatHistory_' + chatId]);
+            const chat = result['chatHistory_' + chatId];
+
+            if (chat) {
+                // Set current chat ID
+                currentChatId = chatId;
+
+                // Set chat history
+                chatHistory = chat.messages || [];
+
+                // Clear chat messages
+                chatMessages.innerHTML = '';
+
+                // Add messages to UI
+                chatHistory.forEach(message => {
+                    addMessageToUI(message.role, message.content);
+                });
+
+                // Save current chat ID
+                chrome.storage.local.set({ lastActiveChatId: currentChatId });
+
+                // Close history popup
+                historyPopup.classList.remove('show');
+            }
+        } catch (error) {
+            console.error('Error loading chat:', error);
+        }
+    }
+
+    // Save current chat
+    async function saveCurrentChat() {
+        if (!currentChatId || chatHistory.length === 0) {
+            return;
+        }
+
+        try {
+            // Get chat title (first user message or default)
+            let title = 'Untitled Chat';
+            const firstUserMessage = chatHistory.find(msg => msg.role === 'user');
+            if (firstUserMessage) {
+                title = firstUserMessage.content.substring(0, 30) + (firstUserMessage.content.length > 30 ? '...' : '');
+            }
+
+            // Create chat object
+            const chat = {
+                id: currentChatId,
+                title: title,
+                messages: chatHistory,
+                lastEditTime: Date.now()
+            };
+
+            // Save chat to storage
+            await chrome.storage.local.set({ ['chatHistory_' + currentChatId]: chat });
+
+            // Get chat history list
+            const result = await chrome.storage.local.get(['chatHistoryList']);
+            let chatHistoryList = result.chatHistoryList || [];
+
+            // Check if chat already exists in list
+            const existingChatIndex = chatHistoryList.findIndex(c => c.id === currentChatId);
+            if (existingChatIndex !== -1) {
+                // Update existing chat
+                chatHistoryList[existingChatIndex] = {
+                    id: chat.id,
+                    title: chat.title,
+                    lastEditTime: chat.lastEditTime
+                };
+            } else {
+                // Add new chat to list
+                chatHistoryList.push({
+                    id: chat.id,
+                    title: chat.title,
+                    lastEditTime: chat.lastEditTime
+                });
+            }
+
+            // Save chat history list
+            await chrome.storage.local.set({ chatHistoryList });
+        } catch (error) {
+            console.error('Error saving chat:', error);
+        }
+    }
+
+    // Load chat history list
+    async function loadChatHistoryList() {
+        try {
+            // Get chat history list
+            const result = await chrome.storage.local.get(['chatHistoryList']);
+            const chatHistoryList = result.chatHistoryList || [];
+
+            // Sort by last edit time (newest first)
+            chatHistoryList.sort((a, b) => b.lastEditTime - a.lastEditTime);
+
+            // Clear history list
+            historyList.innerHTML = '';
+
+            if (chatHistoryList.length === 0) {
+                // Show no history message
+                const noHistoryElement = document.createElement('div');
+                noHistoryElement.className = 'no-history';
+                noHistoryElement.textContent = t('chat.noHistory');
+                historyList.appendChild(noHistoryElement);
+                return;
+            }
+
+            // Add chats to list
+            chatHistoryList.forEach(chat => {
+                const chatElement = document.createElement('div');
+                chatElement.className = 'history-item';
+                if (chat.id === currentChatId) {
+                    chatElement.classList.add('active');
+                }
+
+                const titleElement = document.createElement('div');
+                titleElement.className = 'history-title';
+                titleElement.textContent = chat.title || t('chat.untitled');
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'history-delete-button';
+                deleteButton.innerHTML = '×';
+                deleteButton.title = t('chat.delete');
+
+                chatElement.appendChild(titleElement);
+                chatElement.appendChild(deleteButton);
+
+                // Click event to load chat
+                chatElement.addEventListener('click', (e) => {
+                    if (e.target !== deleteButton) {
+                        loadChat(chat.id);
+                    }
+                });
+
+                // Delete button click event
+                deleteButton.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+
+                    try {
+                        // Remove chat from storage
+                        await chrome.storage.local.remove(['chatHistory_' + chat.id]);
+
+                        // Remove chat from list
+                        const result = await chrome.storage.local.get(['chatHistoryList']);
+                        let chatHistoryList = result.chatHistoryList || [];
+                        chatHistoryList = chatHistoryList.filter(c => c.id !== chat.id);
+                        await chrome.storage.local.set({ chatHistoryList });
+
+                        // If current chat is deleted, create new chat
+                        if (chat.id === currentChatId) {
+                            createNewChat();
+                        }
+
+                        // Reload history list
+                        loadChatHistoryList();
+                    } catch (error) {
+                        console.error('Error deleting chat:', error);
+                    }
+                });
+
+                historyList.appendChild(chatElement);
+            });
+        } catch (error) {
+            console.error('Error loading chat history list:', error);
+        }
+    }
+
+    // Send button click event
+    sendButton.addEventListener('click', sendMessage);
+
+    // Input enter key event
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Event listeners for chat history
+    newChatButton.addEventListener('click', createNewChat);
+
+    historyButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadChatHistoryList();
+        historyPopup.classList.add('show');
+    });
+
+    closeHistoryButton.addEventListener('click', () => {
+        historyPopup.classList.remove('show');
+    });
+
+    // Initialization: Load recent chat or create new chat
+    async function initChat() {
+        console.log('Initializing chat...');
+
+        // 获取设置和聊天历史
+        const result = await chrome.storage.local.get(['settings', 'chatHistoryList', 'lastActiveChatId']);
+        const settings = result.settings || {};
+        const chatHistoryList = result.chatHistoryList || [];
+        const lastActiveChatId = result.lastActiveChatId;
+
+        // 检查是否应该加载上次对话
+        const shouldLoadLastChat = settings.loadLastChat !== false;
+
+        console.log(`Found ${chatHistoryList.length} chats, last active: ${lastActiveChatId}, should load last chat: ${shouldLoadLastChat}`);
+
+        if (chatHistoryList.length > 0 && shouldLoadLastChat) {
+            if (lastActiveChatId) {
+                // 检查lastActiveChatId是否存在于chatHistoryList中
+                const chatExists = chatHistoryList.some(chat => chat.id === lastActiveChatId);
+
+                if (chatExists) {
+                    // 加载最后活动的聊天
+                    console.log(`Loading last active chat: ${lastActiveChatId}`);
+                    loadChat(lastActiveChatId);
+                    return;
+                }
+            }
+
+            // 如果没有lastActiveChatId或它不存在，按最后编辑时间排序加载最新的聊天
+            chatHistoryList.sort((a, b) => b.lastEditTime - a.lastEditTime);
+            console.log(`Loading most recent chat: ${chatHistoryList[0].id}`);
+            loadChat(chatHistoryList[0].id);
+        } else {
+            // 创建新聊天
+            console.log('Creating new chat (no history or loadLastChat is false)');
+            createNewChat();
+        }
+    }
+
+    // Initialize chat
+    initChat();
+
+    // Save current chat before page unload
+    window.removeEventListener('beforeunload', saveCurrentChatOnUnload); // 移除可能存在的旧监听器
+
+    // 创建一个命名的函数，以便可以移除
+    function saveCurrentChatOnUnload() {
+        // 只有当currentChatId存在且聊天历史不为空时才保存
+        if (currentChatId && chatHistory.length > 0) {
+            console.log(`Saving chat ${currentChatId} before unload`);
+            saveCurrentChat();
+        } else {
+            console.log('Not saving on unload: no current chat or empty history');
+        }
+    }
+
+    // 添加新的监听器
+    window.addEventListener('beforeunload', saveCurrentChatOnUnload);
+
+    // 点击外部区域关闭历史记录弹窗
+    document.addEventListener('click', (e) => {
+        // 如果历史记录弹窗已显示
+        if (historyPopup.classList.contains('show')) {
+            // 检查点击是否在历史记录弹窗外部
+            // 并且不是点击历史按钮本身（避免点击历史按钮同时触发打开和关闭）
+            if (!historyPopup.contains(e.target) && e.target !== historyButton && !historyButton.contains(e.target)) {
+                historyPopup.classList.remove('show');
+            }
+        }
+    });
+
+    // 阻止历史记录弹窗内部的点击事件冒泡到文档
+    historyPopup.addEventListener('click', (e) => {
+        // 不阻止删除按钮的点击事件冒泡，因为它需要触发删除功能
+        if (!e.target.classList.contains('history-delete-button')) {
+            e.stopPropagation();
+        }
+    });
+
+    // 添加更新输入状态的函数
+    function updateInputState() {
+        // 根据 isGenerating 状态禁用或启用输入框和发送按钮
+        chatInput.disabled = isGenerating;
+        sendButton.disabled = isGenerating;
+
+        // 可选：添加视觉提示
+        if (isGenerating) {
+            chatInput.classList.add('disabled');
+            sendButton.classList.add('disabled');
+        } else {
+            chatInput.classList.remove('disabled');
+            sendButton.classList.remove('disabled');
+            chatInput.focus();
+        }
+    }
+
+    // 创建并添加刷新图标SVG
+    function createRefreshSvg() {
+        const refreshIcon = document.createElement('img');
+        refreshIcon.src = 'assets/svg/refresh.svg';
+        refreshIcon.classList.add('button-icon');
+        refreshIcon.setAttribute('viewBox', '0 0 24 24');
+        refreshIcon.setAttribute('width', '16');
+        refreshIcon.setAttribute('height', '16');
+        return refreshIcon;
+    }
+
+    function createCopySvg() {
+        const copyIcon = document.createElement('img');
+        copyIcon.src = 'assets/svg/copy.svg';
+        copyIcon.classList.add('button-icon');
+        copyIcon.setAttribute('viewBox', '0 0 24 24');
+        copyIcon.setAttribute('width', '16');
+        copyIcon.setAttribute('height', '16');
+        return copyIcon;
+    }
+
+    // 设置 MutationObserver 来监听新消息
+    function setupMessageObserver() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (!chatMessages) return;
+
+        const chatMessagesObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        // 严格检查是否为非欢迎消息的助手消息
+                        if (node.nodeType === 1 &&
+                            node.classList.contains('message') &&
+                            node.classList.contains('assistant') &&
+                            !node.classList.contains('user') &&
+                            !node.classList.contains('welcome-message')) {
+
+                            // 检查是否已经有重新生成按钮
+                            if (!node.querySelector('.message-actions')) {
+                                // 添加重新生成按钮
+                                const actionsElement = document.createElement('div');
+                                actionsElement.className = 'message-actions';
+
+                                const regenerateButton = document.createElement('button');
+                                regenerateButton.className = 'action-regenerate-button';
+                                regenerateButton.title = t('chat.regenerate');
+
+                                const copyButton = document.createElement('button');
+                                copyButton.className = 'action-copy-button';
+                                copyButton.title = t('chat.copy');
+
+                                // 添加刷新图标
+                                regenerateButton.appendChild(createRefreshSvg());
+                                copyButton.appendChild(createCopySvg());
+
+                                actionsElement.appendChild(copyButton);
+                                actionsElement.appendChild(regenerateButton);
+                                node.appendChild(actionsElement);
+
+                                // 添加重新生成功能
+                                regenerateButton.addEventListener('click', () => {
+                                    regenerateResponse(node);
+                                });
+
+                                // 添加复制功能
+                                copyButton.addEventListener('click', () => {
+                                    const content = node.querySelector('.message-content').textContent;
+                                    copyToClipboard(content);
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        // 开始观察
+        chatMessagesObserver.observe(chatMessages, { childList: true });
+
+        // 为现有的非欢迎消息的助手消息添加重新生成按钮
+        document.querySelectorAll('.message.assistant:not(.user):not(.welcome-message)').forEach(node => {
+            if (!node.querySelector('.message-actions')) {
+                // 添加重新生成按钮
+                const actionsElement = document.createElement('div');
+                actionsElement.className = 'message-actions';
+
+                const regenerateButton = document.createElement('button');
+                regenerateButton.className = 'action-regenerate-button';
+                regenerateButton.title = t('chat.regenerate');
+
+                const copyButton = document.createElement('button');
+                copyButton.className = 'action-copy-button';
+                copyButton.title = t('chat.copy');
+
+                // 添加刷新图标
+                regenerateButton.appendChild(createRefreshSvg());
+                copyButton.appendChild(createCopySvg());
+
+                actionsElement.appendChild(copyButton);
+                actionsElement.appendChild(regenerateButton);
+                node.appendChild(actionsElement);
+
+                // 添加重新生成功能
+                regenerateButton.addEventListener('click', () => {
+                    regenerateResponse(node);
+                });
+
+                // 添加复制功能
+                copyButton.addEventListener('click', () => {
+                    const content = node.querySelector('.message-content').textContent;
+                    copyToClipboard(content);
+                });
+            }
+        });
+
+        // 移除欢迎消息上的重新生成按钮
+        document.querySelectorAll('.message.welcome-message .message-actions').forEach(element => {
+            element.remove();
+        });
+    }
+
+    // 重新生成响应函数
+    async function regenerateResponse(assistantMessageElement) {
+        // 找到前一条用户消息
+        let userMessageElement = assistantMessageElement.previousElementSibling;
+
+        if (!userMessageElement || !userMessageElement.classList.contains('user')) {
+            console.error('Cannot find the user message to regenerate response');
+            return;
+        }
+
+        // 获取用户消息内容
+        const userMessageContent = userMessageElement.querySelector('.message-content').textContent;
+
+        // 获取助手消息内容元素
+        const messageContent = assistantMessageElement.querySelector('.message-content');
+
+        // 显示打字指示器
+        messageContent.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+
+        // 隐藏重新生成按钮
+        const regenerateButton = assistantMessageElement.querySelector('.action-regenerate-button');
+        if (regenerateButton) {
+            regenerateButton.style.display = 'none';
+        }
+
+        // 隐藏复制按钮
+        const copyButton = assistantMessageElement.querySelector('.action-copy-button');
+        if (copyButton) {
+            copyButton.style.display = 'none';
+        }
+
+        try {
+            // 获取当前设置
+            const settings = await getSettings();
+
+            // 收集聊天历史
+            const historyMessages = [];
+            let currentElement = document.getElementById('chat-messages').firstChild;
+
+            // 遍历所有消息元素，直到当前助手消息
+            while (currentElement && currentElement !== assistantMessageElement) {
+                if (currentElement.classList.contains('message')) {
+                    const role = currentElement.classList.contains('user') ? 'user' : 'assistant';
+                    const content = currentElement.querySelector('.message-content').textContent;
+
+                    historyMessages.push({
+                        role: role,
+                        content: content
+                    });
+                }
+                currentElement = currentElement.nextElementSibling;
+            }
+
+            // 根据默认AI服务选择
+            const defaultAI = settings.defaultAI || settings.service || 'ollama';
+
+            if (defaultAI === 'openai') {
+                // 使用OpenAI服务...
+            } else {
+                // 使用Ollama服务
+                try {
+                    // 获取系统提示
+                    const systemPrompt = settings.systemPrompt || '';
+
+                    // 创建一个更新回调函数
+                    const updateCallback = (_, fullContent) => {
+                        // 确保fullContent是字符串
+                        if (typeof fullContent === 'string') {
+                            messageContent.innerHTML = renderMarkdown(fullContent);
+
+                            // 应用代码高亮
+                            if (typeof hljs !== 'undefined') {
+                                try {
+                                    messageContent.querySelectorAll('pre code').forEach((block) => {
+                                        try {
+                                            hljs.highlightElement(block);
+                                        } catch (e) {
+                                            console.debug('Error highlighting code block:', e);
+                                        }
+                                    });
+                                } catch (e) {
+                                    console.debug('Error during code highlighting:', e);
+                                }
+                            }
+
+                            // 自动滚动到底部
+                            scrollToBottom();
+                        } else {
+                            console.error('Invalid content format in updateCallback:', fullContent);
+                        }
+                    };
+
+                    // 发送消息到Ollama，使用updateCallback
+                    const response = await sendMessageToOllama(userMessageContent, historyMessages, updateCallback);
+
+                    // 处理响应
+                    let responseText = '';
+
+                    if (response && typeof response === 'string') {
+                        responseText = response;
+                    } else if (response && response.message) {
+                        responseText = response.message.content;
+                    } else if (response && response.content) {
+                        responseText = response.content;
+                    }
+
+                    // 确保responseText是字符串
+                    if (typeof responseText === 'string') {
+                        messageContent.innerHTML = renderMarkdown(responseText);
+
+                        // 应用代码高亮
+                        if (typeof hljs !== 'undefined') {
+                            try {
+                                messageContent.querySelectorAll('pre code').forEach((block) => {
+                                    try {
+                                        hljs.highlightElement(block);
+                                    } catch (e) {
+                                        console.debug('Error highlighting code block:', e);
+                                    }
+                                });
+                            } catch (e) {
+                                console.debug('Error during code highlighting:', e);
+                            }
+                        }
+                    } else {
+                        console.error('Invalid response format from Ollama:', response);
+                        messageContent.innerHTML = '<div class="error-message">Error: Invalid response format from Ollama</div>';
+                    }
+
+                    // 关键修复：查找并替换聊天历史中的助手消息，而不是添加新消息
+                    // 找到当前助手消息在聊天历史中的索引
+                    let assistantIndex = -1;
+                    for (let i = 0; i < chatHistory.length; i++) {
+                        if (chatHistory[i].role === 'assistant') {
+                            // 找到用户消息后的第一个助手消息
+                            if (i > 0 && chatHistory[i-1].role === 'user' &&
+                                chatHistory[i-1].content === userMessageContent) {
+                                assistantIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (assistantIndex !== -1) {
+                        // 替换现有的助手消息
+                        chatHistory[assistantIndex].content = responseText;
+                    } else {
+                        // 如果找不到匹配的消息（这种情况不应该发生），则添加新消息
+                        chatHistory.push({
+                            role: 'assistant',
+                            content: responseText
+                        });
+                    }
+
+                    // 保存聊天历史
+                    await saveCurrentChat();
+
+                } catch (ollamaError) {
+                    console.error('Error using Ollama service:', ollamaError);
+                    messageContent.innerHTML = `<div class="error-message">Error using Ollama: ${ollamaError.message}</div>`;
+                }
+            }
+
+            // 显示重新生成按钮
+            if (regenerateButton) {
+                regenerateButton.style.display = '';  // 恢复默认显示状态
+            }
+
+            // 显示复制按钮
+            if (copyButton) {
+                copyButton.style.display = '';  // 恢复默认显示状态
+            }
+
+            // 自动滚动到底部
+            scrollToBottom();
+
+        } catch (error) {
+            console.error('Error regenerating response:', error);
+            messageContent.innerHTML = `<div class="error-message">Error regenerating response: ${error.message}</div>`;
+
+            // 显示重新生成按钮
+            if (regenerateButton) {
+                regenerateButton.style.display = '';  // 恢复默认显示状态
+            }
+
+            // 显示复制按钮
+            if (copyButton) {
+                copyButton.style.display = '';  // 恢复默认显示状态
+            }
+
+            // 自动滚动到底部
+            scrollToBottom();
+        }
+    }
+
+    // 复制功能
+    function copyToClipboard(text) {
+        const tempInput = document.createElement('input');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+    }
+
+    // 滚动到底部函数
+    function scrollToBottom() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatMessages) {
+            // 使用平滑滚动效果
+            chatMessages.scrollTo({
+                top: chatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // 在页面加载完成后设置观察器
+    document.addEventListener('DOMContentLoaded', () => {
+        setupMessageObserver();
+    });
+
+    // 如果页面已经加载完成，立即设置观察器
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setupMessageObserver();
+    }
 }
