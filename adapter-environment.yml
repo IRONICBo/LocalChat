@@ -1,0 +1,30 @@
+name: llmadapter
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+dependencies:
+  - bzip2=1.0.8=h80987f9_6
+  - ca-certificates=2025.2.25=hca03da5_0
+  - expat=2.7.1=h313beb8_0
+  - libcxx=17.0.6=he5c5206_4
+  - libffi=3.4.4=hca03da5_1
+  - ncurses=6.5=hee39554_0
+  - openssl=3.0.17=h4ee41c1_0
+  - pip=25.1=pyhc872135_2
+  - python=3.12.0=h99e199e_0
+  - readline=8.3=h0b18652_0
+  - setuptools=78.1.1=py312hca03da5_0
+  - sqlite=3.50.2=h79febb2_1
+  - tk=8.6.14=h6ba3021_1
+  - tzdata=2025b=h04d1e81_0
+  - wheel=0.45.1=py312hca03da5_0
+  - xz=5.6.4=h80987f9_1
+  - zlib=1.2.13=h18a0788_1
+  - pip:
+    - SQLAlchemy==2.0.43
+    - en_core_web_lg==3.8.0
+    - fastapi==0.116.1
+    - presidio_analyzer==2.2.359
+    - presidio_anonymizer==2.2.359
+    - pydantic==2.11.7
+    - requests==2.32.4
+    - uvicorn==0.35.0
