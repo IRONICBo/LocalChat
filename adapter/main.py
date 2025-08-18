@@ -61,7 +61,7 @@ def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
             mappings[hash_str] = email
         else:
             hash_str = next(k for k, v in sensitive_data_cache.items() if v == email)
-        content = content.replace(email, f"[HASH:{hash_str}]")
+        content = content.replace(email, f"EMAIL[HASH:{hash_str}]")
 
     # Check for phone numbers
     phones = re.findall(SENSITIVE_PATTERNS["phone"], content)
@@ -72,7 +72,7 @@ def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
             mappings[hash_str] = phone
         else:
             hash_str = next(k for k, v in sensitive_data_cache.items() if v == phone)
-        content = content.replace(phone, f"[HASH:{hash_str}]")
+        content = content.replace(phone, f"PHONE[HASH:{hash_str}]")
 
     # Check for credit card numbers
     cards = re.findall(SENSITIVE_PATTERNS["credit_card"], content)
@@ -83,7 +83,7 @@ def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
             mappings[hash_str] = card
         else:
             hash_str = next(k for k, v in sensitive_data_cache.items() if v == card)
-        content = content.replace(card, f"[HASH:{hash_str}]")
+        content = content.replace(card, f"CREDIT_CARD[HASH:{hash_str}]")
 
     # Check for ID cards
     ids = re.findall(SENSITIVE_PATTERNS["id_card"], content)
@@ -94,7 +94,7 @@ def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
             mappings[hash_str] = id
         else:
             hash_str = next(k for k, v in sensitive_data_cache.items() if v == id)
-        content = content.replace(id, f"[HASH:{hash_str}]")
+        content = content.replace(id, f"ID_CARD[HASH:{hash_str}]")
 
     return content, mappings
 
