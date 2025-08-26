@@ -10,7 +10,8 @@ analyzer = AnalyzerEngine()
 
 # Call analyzer to get results
 results = analyzer.analyze(text=text,
-                           entities=["PHONE_NUMBER"],
+                        #    Set to none to use default supported languages
+                        #    entities=["PHONE_NUMBER"],
                            language='en')
 print(results)
 
