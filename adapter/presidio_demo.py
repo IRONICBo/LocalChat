@@ -5,14 +5,15 @@ import json
 import logging
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
 from uuid import uuid4
 import litellm
 litellm._turn_on_debug()
 
 from litellm import completion
-from presidio_analyzer import AnalyzerEngine
+from presidio_analyzer import AnalyzerEngine, RecognizerResult
 from presidio_anonymizer import AnonymizerEngine, DeanonymizeEngine
+from presidio_anonymizer.entities import OperatorConfig
 import os
 
 
@@ -35,9 +36,6 @@ os.environ['GEMINI_API_KEY'] = "AIzaSyD0GpisRje3z9tPHxVjuSQPDnBP0W0pLGA"
 # Create a FastAPI application instance
 app = FastAPI(title="Enhanced LLM Proxy Server")
 
-# Configure Ollama API endpoint
-# OLLAMA_API_URL = "http://localhost:11434/api/chat"
-
 # Default model configuration
 DEFAULT_MODEL = "gemini/gemini-2.0-flash"
 
@@ -45,34 +43,71 @@ DEFAULT_MODEL = "gemini/gemini-2.0-flash"
 # Format: {hash_value: original_value}
 sensitive_data_cache = {}
 
-def generate_hash(value: str) -> str:
-    """Generate a unique hash for sensitive data"""
-    return hashlib.sha256(value.encode()).hexdigest()[:16]
+# Track entity counts for numbering
+entity_counter = {}
 
-def anonymize_text(text):
+def generate_hash(value: str, entity_type: str) -> str:
+    """Generate a unique hash for sensitive data with entity type prefix"""
+    entity_counter[entity_type] = entity_counter.get(entity_type, 0) + 1
+    return f"{entity_type}_{entity_counter[entity_type]}"
+
+def anonymize_text(text: str) -> Tuple[str, Dict[str, str]]:
+    """Anonymize text with entity numbering"""
     # Analyze the text to find PII entities
     results = analyzer.analyze(text=text, language='en')
-    # Anonymize the identified PII entities
-    anonymized_text = anonymizer.anonymize(text=text, analyzer_results=results)
-    return anonymized_text.text
+
+    # Create a mapping for this operation
+    operation_mapping = {}
+
+    # Prepare anonymization operations with numbered entities
+    operations = []
+    for result in results:
+        entity_type = result.entity_type
+        original_value = text[result.start:result.end]
+
+        # Generate numbered identifier
+        numbered_entity = generate_hash(original_value, entity_type)
+
+        # Store mapping
+        operation_mapping[numbered_entity] = original_value
+
+        # Create operator config
+        operations.append(
+            OperatorConfig(
+                "replace",
+                {"new_value": f"[{numbered_entity}]"}
+            )
+        )
+
+    # Anonymize with custom operations
+    anonymized_result = anonymizer.anonymize(
+        text=text,
+        analyzer_results=results,
+        operators={result.entity_type: operations[i] for i, result in enumerate(results)}
+    )
+
+    # Update global cache
+    sensitive_data_cache.update(operation_mapping)
+
+    return anonymized_result.text, operation_mapping
 
 def mask_sensitive_info(content: str) -> str:
     """
-    Identify and mask sensitive information in content
-    Returns masked content and a dictionary of hash mappings
+    Identify and mask sensitive information in content with numbered entities
+    Returns masked content
     """
-
-    return anonymize_text(content)
+    masked_text, _ = anonymize_text(content)
+    return masked_text
 
 def restore_sensitive_info(content: str) -> str:
-    """Restore original sensitive information from hash placeholders"""
+    """Restore original sensitive information from numbered placeholders"""
     import re
-    # Find all hash patterns in content
-    hash_matches = re.findall(r"\[HASH:([a-f0-9]{16})\]", content)
+    # Find all numbered entity patterns in content
+    matches = re.findall(r"\[([A-Z_]+_\d+)\]", content)
 
-    for hash_str in hash_matches:
-        if hash_str in sensitive_data_cache:
-            content = content.replace(f"[HASH:{hash_str}]", sensitive_data_cache[hash_str])
+    for entity_id in matches:
+        if entity_id in sensitive_data_cache:
+            content = content.replace(f"[{entity_id}]", sensitive_data_cache[entity_id])
 
     return content
 
@@ -93,7 +128,7 @@ async def proxy_chat(request: ChatRequest):
     """
     Enhanced proxy endpoint with:
     - Sensitive information masking before sending to LLM
-    - Caching of sensitive data mappings
+    - Numbered entity tracking for repeated values
     - Restoration of sensitive information in responses
     - Logging of original LLM responses
     """
@@ -115,23 +150,20 @@ async def proxy_chat(request: ChatRequest):
                 "content": masked_content
             })
 
-        # Log the sensitive data mappings for this request
-
-        # Create request data with forced parameters
-        # Forward the request to the Ollama API
+        # Get LLM response
         response = completion(
             model=DEFAULT_MODEL,
             messages=processed_messages,
         )
-        # response = completion(
-        #     model="gemini/gemini-2.0-flash",
-        #     messages=[{"role": "user", "content": "write code for saying hi from LiteLLM"}],
-        # )
 
         # Get and log the original LLM response
-        logging.info(f"Request {request_id} - Original LLM response: {response.choices[0]['message']['content']}")
+        llm_response = response.choices[0]['message']['content']
+        logging.info(f"Request {request_id} - Original LLM response: {llm_response}")
 
         # Restore sensitive information in the response
+        restored_response = restore_sensitive_info(llm_response)
+        response.choices[0]['message']['content'] = restored_response
+
         return response.to_dict()
 
     except requests.exceptions.ConnectionError:
