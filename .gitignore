@@ -16,3 +16,6 @@ uploaded_files/
 
 # Model
 *.pkl
+
+# Keys
+.env
