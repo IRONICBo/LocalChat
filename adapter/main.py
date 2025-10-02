@@ -11,11 +11,8 @@ from uuid import uuid4
 # Configure logging to file and console
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("llm_proxy.log"),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("llm_proxy.log"), logging.StreamHandler()],
 )
 
 # Create a FastAPI application instance
@@ -34,15 +31,17 @@ sensitive_data_cache = {}
 # Sensitive patterns to detect (can be expanded as needed)
 SENSITIVE_PATTERNS = {
     # Example patterns - adjust according to your needs
-    "email": r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-    "phone": r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b',
-    "credit_card": r'\b(?:\d{4}[-\s]?){3}\d{4}\b',
-    "id_card": r'\b\d{17}[\dXx]\b'  # Chinese ID card example
+    "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+    "phone": r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b",
+    "credit_card": r"\b(?:\d{4}[-\s]?){3}\d{4}\b",
+    "id_card": r"\b\d{17}[\dXx]\b",  # Chinese ID card example
 }
+
 
 def generate_hash(value: str) -> str:
     """Generate a unique hash for sensitive data"""
     return hashlib.sha256(value.encode()).hexdigest()[:16]
+
 
 def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
     """
@@ -50,6 +49,7 @@ def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
     Returns masked content and a dictionary of hash mappings
     """
     import re
+
     mappings = {}
 
     # Check for email patterns
@@ -98,29 +98,38 @@ def mask_sensitive_info(content: str) -> Tuple[str, Dict]:
 
     return content, mappings
 
+
 def restore_sensitive_info(content: str) -> str:
     """Restore original sensitive information from hash placeholders"""
     import re
+
     # Find all hash patterns in content
     hash_matches = re.findall(r"\[HASH:([a-f0-9]{16})\]", content)
 
     for hash_str in hash_matches:
         if hash_str in sensitive_data_cache:
-            content = content.replace(f"[HASH:{hash_str}]", sensitive_data_cache[hash_str])
+            content = content.replace(
+                f"[HASH:{hash_str}]", sensitive_data_cache[hash_str]
+            )
 
     return content
+
 
 # Define Pydantic models
 class Message(BaseModel):
     """Represents a single message in the chat conversation"""
+
     role: str
     content: str
 
+
 class ChatRequest(BaseModel):
     """Represents a chat completion request"""
+
     model: Optional[str] = None
     messages: List[Message]
     stream: Optional[bool] = False
+
 
 @app.post("/api/chat", response_model=Dict)
 async def proxy_chat(request: ChatRequest):
@@ -142,62 +151,61 @@ async def proxy_chat(request: ChatRequest):
 
         for msg in request.messages:
             masked_content, mappings = mask_sensitive_info(msg.content)
-            processed_messages.append({
-                "role": msg.role,
-                "content": masked_content
-            })
+            processed_messages.append({"role": msg.role, "content": masked_content})
             all_mappings.update(mappings)
 
         # Log the sensitive data mappings for this request
         if all_mappings:
-            logging.info(f"Request {request_id} - Sensitive data mappings: {json.dumps(all_mappings)}")
+            logging.info(
+                f"Request {request_id} - Sensitive data mappings: {json.dumps(all_mappings)}"
+            )
 
         # Create request data with forced parameters
         request_data = {
             "model": request.model if request.model else DEFAULT_MODEL,
             "messages": processed_messages,
-            "stream": False  # Force non-streaming
+            "stream": False,  # Force non-streaming
         }
-        logging.info(f"Request {request_id} - Forwarding request data: {json.dumps(request_data)}")
+        logging.info(
+            f"Request {request_id} - Forwarding request data: {json.dumps(request_data)}"
+        )
 
         # Forward the request to the Ollama API
-        response = requests.post(
-            OLLAMA_API_URL,
-            json=request_data,
-            stream=False
-        )
+        response = requests.post(OLLAMA_API_URL, json=request_data, stream=False)
 
         # Check if the request to Ollama was successful
         if response.status_code != 200:
             raise HTTPException(
                 status_code=response.status_code,
-                detail=f"LLM API request failed: {response.text}"
+                detail=f"LLM API request failed: {response.text}",
             )
 
         # Get and log the original LLM response
         original_response = response.json()
-        logging.info(f"Request {request_id} - Original LLM response: {json.dumps(original_response)}")
+        logging.info(
+            f"Request {request_id} - Original LLM response: {json.dumps(original_response)}"
+        )
 
         # Restore sensitive information in the response
         if "message" in original_response and "content" in original_response["message"]:
-            original_response["message"]["content"] = restore_sensitive_info(original_response["message"]["content"])
+            original_response["message"]["content"] = restore_sensitive_info(
+                original_response["message"]["content"]
+            )
 
         return original_response
 
     except requests.exceptions.ConnectionError:
         logging.error(f"Request {request_id} - Unable to connect to LLM API")
         raise HTTPException(
-            status_code=503,
-            detail=f"Unable to connect to LLM API at: {OLLAMA_API_URL}"
+            status_code=503, detail=f"Unable to connect to LLM API at: {OLLAMA_API_URL}"
         )
     except Exception as e:
         logging.error(f"Request {request_id} - Proxy server error: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Proxy server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Proxy server error: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn
+
     # Start the server on port 8000
     uvicorn.run(app, host="0.0.0.0", port=8000)

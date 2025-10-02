@@ -16,7 +16,9 @@ class FakePIIGenerator:
             locale: Locale setting for generating fake data.
         """
         self.faker = Faker(locale)
-        self.memory: Dict[str, Dict[str, str]] = {category: {} for category in self.get_supported_categories()}
+        self.memory: Dict[str, Dict[str, str]] = {
+            category: {} for category in self.get_supported_categories()
+        }
 
     @staticmethod
     def get_supported_categories() -> List[str]:
@@ -102,7 +104,9 @@ class FakePIIGenerator:
 
     def _generate_date_of_birth(self, original: str) -> str:
         """Generates a fake date of birth."""
-        return self.faker.date_of_birth(minimum_age=18, maximum_age=90).strftime("%Y-%m-%d")
+        return self.faker.date_of_birth(minimum_age=18, maximum_age=90).strftime(
+            "%Y-%m-%d"
+        )
 
     def _generate_domain_name(self, original: str) -> str:
         """Generates a fake domain name."""
@@ -118,7 +122,9 @@ class FakePIIGenerator:
 
     def _generate_gender(self, original: str) -> str:
         """Generates a fake gender."""
-        return self.faker.random_element(elements=("Male", "Female", "Non-binary", "Prefer not to say"))
+        return self.faker.random_element(
+            elements=("Male", "Female", "Non-binary", "Prefer not to say")
+        )
 
     def _generate_personal_id(self, original: str) -> str:
         """Generates a fake personal ID."""
@@ -161,7 +167,9 @@ class FakePIIGenerator:
 
     def _generate_password(self, original: str) -> str:
         """Generates a fake password."""
-        return self.faker.password(length=12, special_chars=True, digits=True, upper_case=True, lower_case=True)
+        return self.faker.password(
+            length=12, special_chars=True, digits=True, upper_case=True, lower_case=True
+        )
 
     def _generate_secure_credential(self, original: str) -> str:
         """Generates a fake secure credential."""

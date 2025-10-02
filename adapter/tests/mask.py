@@ -6,12 +6,14 @@ analyzer = AnalyzerEngine()
 anonymizer = AnonymizerEngine()
 deanonymizer = DeanonymizeEngine()
 
+
 def anonymize_text(text):
     # Analyze the text to find PII entities
-    results = analyzer.analyze(text=text, language='en')
+    results = analyzer.analyze(text=text, language="en")
     # Anonymize the identified PII entities
     anonymized_text = anonymizer.anonymize(text=text, analyzer_results=results)
     return anonymized_text.text, anonymized_text.items
+
 
 def test_cases():
     cases = [
@@ -23,13 +25,14 @@ def test_cases():
         "请帮我填写这个实验休假申请表。我的姓名是Emily Brown，身份证号是123456789，亲戚关系是我的兄弟James Brown。",
         "今天在123 BBQ St, Los Angeles, CA 90001吃烧烤拉肚子，我需要如何缓解？",
         "帮我给实验室群组的张同学发送消息，告知他我因生病请假。我的联系方式是123-456-7890。",
-        "帮我查询一下最近的一周消费情况。我使用的信用卡号是4111-1111-1111-1111，用户名是user123，密码是pass123。"
+        "帮我查询一下最近的一周消费情况。我使用的信用卡号是4111-1111-1111-1111，用户名是user123，密码是pass123。",
     ]
 
     for i, case in enumerate(cases, 1):
         anonymized, items = anonymize_text(case)
         print(f"Test Case {i} Output:\n{anonymized}\n")
         print(f"Test Case {i} Items:\n{items}\n")
+
 
 if __name__ == "__main__":
     test_cases()
