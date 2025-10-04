@@ -380,7 +380,6 @@ Service upgrade for {{phone_number}} includes new features at {{ip_address}} - c
 {{first_name}}'s subscription to {{organization}} renews on {{date_time}} - update {{credit_card_number}} if needed
 Verification code sent to {{phone_number}} for account {{iban}} - valid until {{date_time}}
 Meeting reminder: {{person}} at {{address}} on {{date_time}} - bring {{us_driver_license}} for entry
-Payment of {{amount}} from {{iban}} to {{organization}} processed - receipt at {{email}}
 Your device {{ip_address}} accessed {{email}} from {{country}} - approve this activity?
 {{prefix_male}} {{name_male}} requested password reset for {{organization}} - code sent to {{phone_number}}
 Package for {{person}} held at {{address}} - pay duty via {{credit_card_number}} before {{date_time}}
@@ -400,7 +399,6 @@ Service upgrade for {{phone_number}} includes new features at {{ip_address}} - c
 {{first_name}}'s subscription to {{organization}} renews on {{date_time}} - update {{credit_card_number}} if needed
 Verification code sent to {{phone_number}} for account {{iban}} - valid until {{date_time}}
 Meeting reminder: {{person}} at {{address}} on {{date_time}} - bring {{us_driver_license}} for entry
-Payment of {{amount}} from {{iban}} to {{organization}} processed - receipt at {{email}}
 Your device {{ip_address}} accessed {{email}} from {{country}} - approve this activity?
 {{prefix_male}} {{name_male}} requested password reset for {{organization}} - code sent to {{phone_number}}
 Package for {{person}} held at {{address}} - pay duty via {{credit_card_number}} before {{date_time}}
@@ -420,7 +418,6 @@ Service upgrade for {{phone_number}} includes new features at {{ip_address}} - c
 {{first_name}}'s subscription to {{organization}} renews on {{date_time}} - update {{credit_card_number}} if needed
 Verification code sent to {{phone_number}} for account {{iban}} - valid until {{date_time}}
 Meeting reminder: {{person}} at {{address}} on {{date_time}} - bring {{us_driver_license}} for entry
-Payment of {{amount}} from {{iban}} to {{organization}} processed - receipt at {{email}}
 Your device {{ip_address}} accessed {{email}} from {{country}} - approve this activity?
 {{prefix_male}} {{name_male}} requested password reset for {{organization}} - code sent to {{phone_number}}
 Package for {{person}} held at {{address}} - pay duty via {{credit_card_number}} before {{date_time}}
@@ -445,7 +442,6 @@ Parking permit for {{address}} issued to {{person}} expires on {{date_time}} - r
 Transfer authorization needed from {{person}} at {{phone_number}} for transaction from {{iban}} to {{iban}}
 Your appointment with {{organization}} on {{date_time}} is confirmed for {{person}} at {{address}}
 {{first_name}}'s login from {{ip_address}} to {{email}} was flagged - verify at {{phone_number}}
-Payment processed from {{iban}} to {{organization}} for {{amount}} - receipt at {{email}}
 {{prefix_male}} {{name_male}} requested password reset for {{iban}} - code sent to {{phone_number}}
 Package for {{person}} at {{address}} needs customs clearance via {{credit_card_number}}
 Documents require notarization for {{person}} at {{address}} by {{date_time}} - bring {{us_driver_license}}
@@ -483,23 +479,19 @@ Unusual activity on {{iban}} from {{ip_address}} - verify at {{email}}
 {{first_name}}'s service at {{address}} requires approval by {{phone_number}}
 Parking permit for {{address}} ({{person}}) expires {{date_time}} - renew now
 Transfer authorization needed from {{person}} at {{phone_number}} for {{iban}}
-Despite prior authorization from {{person}} at {{phone_number}}, the international wire transfer of {{amount}} from {{iban}} to {{country}} was delayed due to conflicting address information between {{credit_card_number}} records and the {{organization}} database
 Not only must {{first_name}} {{last_name}} provide updated {{us_driver_license}} documentation at {{address}}, but also reconcile transaction discrepancies between {{credit_card_number}} activity in {{city}} and claimed residence at {{address}}
 Although the initial security clearance for {{person}} was approved, access to {{organization}} systems from {{ip_address}} remains restricted pending verification of {{email}} activity and secondary authentication via {{phone_number}}
 The complex inheritance case involving {{person}}, {{person}}, and {{person}} requires notarized documents from all parties at {{address}} by {{date_time}}, with financial verification through {{iban}} and identity confirmation via {{us_driver_license}}
 Whereas the shipment to {{address}} was cleared by customs, the associated payment from {{credit_card_number}} initiated from {{ip_address}} in {{country}} requires additional fraud prevention verification through {{email}} and {{phone_number}}
 Despite multiple factor authentication attempts, access to {{organization}} resources from {{ip_address}} remains blocked due to geographical conflicts between {{country}} location and registered {{address}} on file for {{iban}}
-Not only must {{prefix_male}} {{name_male}} verify the recent {{amount}} transaction from {{credit_card_number}} at {{organization}}, but also confirm whether the purchase originating from {{ip_address}} aligns with typical spending patterns in {{city}}
 The escrow agreement between {{person}} ({{email}}) and {{person}} ({{phone_number}}) requires simultaneous notarization at {{address}} and {{address}} respectively, with funds from {{iban}} to be released only after verification of {{us_driver_license}} documents
 Although the patient {{first_name}} {{last_name}} provided insurance information linked to {{organization}}, the {{address}} on file conflicts with recent {{credit_card_number}} transactions in {{country}}, requiring clarification via {{phone_number}} before {{date_time}}
 The multi-jurisdictional case requires coordination between {{person}} at {{address}}, {{person}} at {{address}}, and {{organization}} representatives, with all documentation to be verified against {{iban}} records, {{us_driver_license}} identification, and {{email}} communication trails before the deadline of {{date_time}}
-Despite prior authorization from {{person}} at {{phone_number}}, the international wire transfer of {{amount}} from {{iban}} to {{country}} was delayed due to conflicting address information between {{credit_card_number}} records and the {{organization}} database
 Not only must {{first_name}} {{last_name}} provide updated {{us_driver_license}} documentation at {{address}}, but also reconcile transaction discrepancies between {{credit_card_number}} activity in {{city}} and claimed residence at {{address}}
 Although the initial security clearance for {{person}} was approved, access to {{organization}} systems from {{ip_address}} remains restricted pending verification of {{email}} activity and secondary authentication via {{phone_number}}
 The complex inheritance case involving {{person}}, {{person}}, and {{person}} requires notarized documents from all parties at {{address}} by {{date_time}}, with financial verification through {{iban}} and identity confirmation via {{us_driver_license}}
 Whereas the shipment to {{address}} was cleared by customs, the associated payment from {{credit_card_number}} initiated from {{ip_address}} in {{country}} requires additional fraud prevention verification through {{email}} and {{phone_number}}
 Despite multiple factor authentication attempts, access to {{organization}} resources from {{ip_address}} remains blocked due to geographical conflicts between {{country}} location and registered {{address}} on file for {{iban}}
-Not only must {{prefix_male}} {{name_male}} verify the recent {{amount}} transaction from {{credit_card_number}} at {{organization}}, but also confirm whether the purchase originating from {{ip_address}} aligns with typical spending patterns in {{city}}
 The escrow agreement between {{person}} ({{email}}) and {{person}} ({{phone_number}}) requires simultaneous notarization at {{address}} and {{address}} respectively, with funds from {{iban}} to be released only after verification of {{us_driver_license}} documents
 Although the patient {{first_name}} {{last_name}} provided insurance information linked to {{organization}}, the {{address}} on file conflicts with recent {{credit_card_number}} transactions in {{country}}, requiring clarification via {{phone_number}} before {{date_time}}
 The multi-jurisdictional case requires coordination between {{person}} at {{address}}, {{person}} at {{address}}, and {{organization}} representatives, with all documentation to be verified against {{iban}} records, {{us_driver_license}} identification, and {{email}} communication trails before the deadline of {{date_time}}
