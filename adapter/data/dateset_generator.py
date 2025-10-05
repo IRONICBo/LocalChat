@@ -3,6 +3,7 @@ import pprint
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List
+import json
 
 import pandas as pd
 import numpy as np
@@ -23,7 +24,7 @@ sentence_templates = [
 ]
 output_file = f"./generated_size_{number_of_samples}_en.jsonl"
 
-sentence_faker = PresidioSentenceFaker("en_US", lower_case_ratio=lower_case_ratio)
+sentence_faker = PresidioSentenceFaker("en_US", lower_case_ratio=lower_case_ratio, sentence_templates=sentence_templates)
 
 import random
 from faker.providers import BaseProvider
@@ -75,4 +76,9 @@ for record in fake_records:
 for record in fake_records[:10]:
     print(record)
 
-InputSample.to_json(dataset=fake_records, output_file=output_file)
+# InputSample.to_json(dataset=fake_records, output_file=output_file)
+
+# Save jsonl lines
+with open(output_file, "w", encoding="utf-8") as f:
+    for record in fake_records:
+        f.write(json.dumps(record.to_dict()) + "\n")
