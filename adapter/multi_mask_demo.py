@@ -7,6 +7,7 @@ from presidio_anonymizer.entities import OperatorConfig
 analyzer = AnalyzerEngine()
 anonymizer = AnonymizerEngine()
 
+
 def mask_sensitive_info(content: str) -> str:
     """Identify and mask sensitive information in content with numbered entities"""
     # Analyze the text to find PII entities
@@ -31,6 +32,7 @@ def mask_sensitive_info(content: str) -> str:
 
     return anonymized_result.text
 
+
 def mask_tab():
     with gr.Tab(label="Mask Sensitive Information"):
         gr.Markdown("Enter a prompt to mask sensitive information.")
@@ -45,7 +47,10 @@ def mask_tab():
             masked_prompt = mask_sensitive_info(prompt)
             return masked_prompt
 
-        submit_button.click(fn=update_masked_prompt, inputs=input_text, outputs=output_text)
+        submit_button.click(
+            fn=update_masked_prompt, inputs=input_text, outputs=output_text
+        )
+
 
 if __name__ == "__main__":
     with gr.Blocks() as main_block:
