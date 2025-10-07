@@ -3,6 +3,7 @@ __pycache__
 *.db
 *.log
 *.json
+*.jsonl
 
 result-en/
 result-zh/
