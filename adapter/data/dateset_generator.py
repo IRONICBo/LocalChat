@@ -19,12 +19,13 @@ cur_time = datetime.date.today().strftime("%B_%d_%Y")
 # Give new path to your templates file if needed
 template_file_path = Path(__file__).parent / "templates.txt"
 sentence_templates = [
-    line.strip()
-    for line in template_file_path.read_text().splitlines()
+    line.strip() for line in template_file_path.read_text().splitlines()
 ]
 output_file = f"./generated_size_{number_of_samples}_en.jsonl"
 
-sentence_faker = PresidioSentenceFaker("en_US", lower_case_ratio=lower_case_ratio, sentence_templates=sentence_templates)
+sentence_faker = PresidioSentenceFaker(
+    "en_US", lower_case_ratio=lower_case_ratio, sentence_templates=sentence_templates
+)
 
 import random
 from faker.providers import BaseProvider

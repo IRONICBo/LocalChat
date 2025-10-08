@@ -8,7 +8,15 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def upload_to_hf(repo_id, local_path, hf_path=None, repo_type="dataset", auto_create=False, commit_message=None):
+
+def upload_to_hf(
+    repo_id,
+    local_path,
+    hf_path=None,
+    repo_type="dataset",
+    auto_create=False,
+    commit_message=None,
+):
     """
     Upload files or directories to Hugging Face Hub
 
@@ -24,7 +32,9 @@ def upload_to_hf(repo_id, local_path, hf_path=None, repo_type="dataset", auto_cr
         local_path = Path(local_path)
         if auto_create:
             logger.info(f"Creating repository {repo_id}...")
-            api.create_repo(repo_id=repo_id, repo_type=repo_type, private=False, exist_ok=True)
+            api.create_repo(
+                repo_id=repo_id, repo_type=repo_type, private=False, exist_ok=True
+            )
 
         if not commit_message:
             commit_message = f"Add {local_path.name} via script at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -64,13 +74,25 @@ def upload_to_hf(repo_id, local_path, hf_path=None, repo_type="dataset", auto_cr
         logger.error(f"Upload failed: {str(e)}")
         raise
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload files to Hugging Face Hub")
-    parser.add_argument("repo_id", help="Target repository in format 'username/repo-name'")
+    parser.add_argument(
+        "repo_id", help="Target repository in format 'username/repo-name'"
+    )
     parser.add_argument("local_path", help="Local file or directory path")
-    parser.add_argument("--hf_path", help="Path in the repository (optional)", default=None)
-    parser.add_argument("--repo_type", choices=["dataset", "model", "space"], default="dataset")
-    parser.add_argument("--auto_create", action="store_true", help="Make repository private", default=True)
+    parser.add_argument(
+        "--hf_path", help="Path in the repository (optional)", default=None
+    )
+    parser.add_argument(
+        "--repo_type", choices=["dataset", "model", "space"], default="dataset"
+    )
+    parser.add_argument(
+        "--auto_create",
+        action="store_true",
+        help="Make repository private",
+        default=True,
+    )
     parser.add_argument("--message", help="Commit message", default=None)
 
     args = parser.parse_args()
@@ -81,5 +103,5 @@ if __name__ == "__main__":
         hf_path=args.hf_path,
         repo_type=args.repo_type,
         auto_create=args.auto_create,
-        commit_message=args.message
+        commit_message=args.message,
     )
