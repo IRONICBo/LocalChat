@@ -305,7 +305,7 @@ class PresidioExtractor(PIIExtractor):
 class LLMExtractor(PIIExtractor):
     """LLM (Ollama) extractor"""
 
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen2.5:latest"):
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen2:0.5b"):
         super().__init__("LLM_Ollama")
         self.base_url = base_url
         self.model = model
@@ -702,7 +702,7 @@ if __name__ == "__main__":
 
     output_excel = "pii_extraction_comparison_results.xlsx"
     sample_limit = 100  # Test with 100 samples
-    use_llm = False  # Whether to use LLM (slower)
+    use_llm = True  # Whether to use LLM (slower)
 
     # Check if dataset exists
     if not Path(dataset_path).exists():
