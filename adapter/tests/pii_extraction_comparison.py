@@ -2,12 +2,13 @@
 """
 PII Extraction Methods Comparison Test
 
-Compare 4 PII extraction methods:
-1. BlackWhiteList extraction (database-based)
-2. Regular expression extraction
-3. Presidio PII extraction
-4. LLM (Ollama) extraction
+Compare PII extraction methods:
+1. Regular expression extraction
+2. Presidio PII extraction (Deep Learning)
+3. LLM (Ollama) extraction
+4. E2E (End-to-End): Presidio + LLM
 
+Focus on evaluating PII and LLM detection accuracy
 Test accuracy and output results to Excel
 """
 
@@ -305,7 +306,7 @@ class PresidioExtractor(PIIExtractor):
 class LLMExtractor(PIIExtractor):
     """LLM (Ollama) extractor"""
 
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen2:0.5b"):
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen:0.5b"):
         super().__init__("LLM_Ollama")
         self.base_url = base_url
         self.model = model
@@ -352,10 +353,43 @@ Return ONLY the JSON array, no additional text.
 
                 # Try to parse JSON
                 try:
-                    # Extract JSON array
-                    json_match = re.search(r'\[.*\]', llm_response, re.DOTALL)
+                    # Remove markdown code blocks if present
+                    cleaned_response = re.sub(r'```json\s*', '', llm_response)
+                    cleaned_response = re.sub(r'```\s*', '', cleaned_response)
+
+                    # Extract JSON array (first occurrence only)
+                    json_match = re.search(r'\[.*?\]', cleaned_response, re.DOTALL)
                     if json_match:
-                        entities_data = json.loads(json_match.group())
+                        json_str = json_match.group()
+
+                        # Clean up the JSON string
+                        # Fix common LLM JSON errors
+                        json_str = re.sub(r'entity__type', 'entity_type', json_str)
+
+                        # Fix unquoted values in entity_value fields
+                        # Pattern: "entity_value": <unquoted value>} or "entity_value": <unquoted value>,
+                        def quote_entity_value(match):
+                            key = match.group(1)
+                            value = match.group(2).strip()
+
+                            # Remove any trailing quotes or special chars
+                            value = value.rstrip('"}]')
+
+                            # If value is not already quoted
+                            if not (value.startswith('"') and value.endswith('"')):
+                                # Remove any internal quotes and escape them
+                                value = value.replace('"', '')
+                                return f'"{key}": "{value}"'
+                            return match.group(0)
+
+                        # Match "entity_value": <value> (where value might not be quoted)
+                        json_str = re.sub(
+                            r'"(entity_value)":\s*([^,}\]]+?)(?=[,}\]])',
+                            quote_entity_value,
+                            json_str
+                        )
+
+                        entities_data = json.loads(json_str)
 
                         # Convert to standard format
                         entities = []
@@ -380,6 +414,72 @@ Return ONLY the JSON array, no additional text.
         except Exception as e:
             print(f"LLM extraction error: {e}")
             return []
+
+class E2EExtractor(PIIExtractor):
+    """End-to-End extractor: Presidio (PII) + LLM"""
+
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen:0.5b"):
+        super().__init__("E2E (PII+LLM)")
+        self.presidio_extractor = PresidioExtractor()
+        self.llm_extractor = LLMExtractor(base_url, model)
+        self.available = self.presidio_extractor.available and self.llm_extractor.available
+
+    def extract(self, text: str) -> List[Dict]:
+        """Extract PII using Presidio first, then LLM, and merge results"""
+        if not self.available:
+            return []
+
+        # Step 1: Extract using Presidio (PII Deep Learning)
+        presidio_entities = self.presidio_extractor.extract(text)
+
+        # Step 2: Extract using LLM
+        llm_entities = self.llm_extractor.extract(text)
+
+        # Step 3: Merge results (combine both, remove duplicates)
+        merged_entities = self._merge_entities(presidio_entities, llm_entities)
+
+        return merged_entities
+
+    def _merge_entities(self, entities1: List[Dict], entities2: List[Dict]) -> List[Dict]:
+        """
+        Merge two entity lists, removing duplicates and overlaps
+        Priority: keep longer entity, or first one if same length
+        """
+        all_entities = entities1 + entities2
+
+        if not all_entities:
+            return []
+
+        # Sort by start position, then by length (descending)
+        all_entities = sorted(all_entities, key=lambda x: (x["start"], -(x["end"] - x["start"])))
+
+        merged = []
+        i = 0
+
+        while i < len(all_entities):
+            current = all_entities[i]
+            j = i + 1
+
+            # Check for overlaps with subsequent entities
+            while j < len(all_entities):
+                next_entity = all_entities[j]
+
+                # If overlap, keep the longer one
+                if self._is_overlap(current, next_entity):
+                    if (next_entity["end"] - next_entity["start"]) > (current["end"] - current["start"]):
+                        current = next_entity
+                    j += 1
+                else:
+                    break
+
+            merged.append(current)
+            i = j
+
+        return merged
+
+    def _is_overlap(self, entity1: Dict, entity2: Dict) -> bool:
+        """Check if two entities overlap"""
+        return not (entity1["end"] <= entity2["start"] or entity2["end"] <= entity1["start"])
 
 
 class PIIEvaluator:
@@ -509,7 +609,7 @@ def load_dataset(file_path: str, limit: int = None) -> List[Dict]:
 def run_comparison_test(
     dataset_path: str,
     output_excel: str = "pii_extraction_comparison_results.xlsx",
-    sample_limit: int = 100,
+    sample_limit: int = 200,
     use_llm: bool = True
 ):
     """Run comparison test"""
@@ -525,15 +625,15 @@ def run_comparison_test(
     print(f"Loaded {len(dataset)} samples")
     print()
 
-    # Initialize extractors
+    # Initialize extractors - Focus on Regex, PII, LLM, and E2E
     extractors = [
-        BlackWhiteListExtractor(),
         RegexExtractor(),
-        PresidioExtractor(),
+        # PresidioExtractor(),
     ]
 
     if use_llm and HAS_REQUESTS:
         extractors.append(LLMExtractor())
+        extractors.append(E2EExtractor())  # Add E2E extractor (PII + LLM)
     elif use_llm and not HAS_REQUESTS:
         print("Warning: LLM extractor requires requests module, disabled")
         print("         Install with: pip install requests")
@@ -599,7 +699,7 @@ def run_comparison_test(
 
         elapsed_time = time.time() - start_time
 
-        # Calculate average metrics
+        # Calculate average metrics (per-sample average)
         avg_metrics_exact = {
             "precision": sum(m["precision"] for m in all_metrics_exact) / len(all_metrics_exact),
             "recall": sum(m["recall"] for m in all_metrics_exact) / len(all_metrics_exact),
@@ -612,30 +712,93 @@ def run_comparison_test(
             "f1": sum(m["f1"] for m in all_metrics_overlap) / len(all_metrics_overlap),
         }
 
+        # Calculate total metrics (aggregate all entities)
+        total_tp_exact = sum(m["true_positive"] for m in all_metrics_exact)
+        total_fp_exact = sum(m["false_positive"] for m in all_metrics_exact)
+        total_fn_exact = sum(m["false_negative"] for m in all_metrics_exact)
+
+        total_precision_exact = total_tp_exact / (total_tp_exact + total_fp_exact) if (total_tp_exact + total_fp_exact) > 0 else 0
+        total_recall_exact = total_tp_exact / (total_tp_exact + total_fn_exact) if (total_tp_exact + total_fn_exact) > 0 else 0
+        total_f1_exact = 2 * total_precision_exact * total_recall_exact / (total_precision_exact + total_recall_exact) if (total_precision_exact + total_recall_exact) > 0 else 0
+
+        total_tp_overlap = sum(m["true_positive"] for m in all_metrics_overlap)
+        total_fp_overlap = sum(m["false_positive"] for m in all_metrics_overlap)
+        total_fn_overlap = sum(m["false_negative"] for m in all_metrics_overlap)
+
+        total_precision_overlap = total_tp_overlap / (total_tp_overlap + total_fp_overlap) if (total_tp_overlap + total_fp_overlap) > 0 else 0
+        total_recall_overlap = total_tp_overlap / (total_tp_overlap + total_fn_overlap) if (total_tp_overlap + total_fn_overlap) > 0 else 0
+        total_f1_overlap = 2 * total_precision_overlap * total_recall_overlap / (total_precision_overlap + total_recall_overlap) if (total_precision_overlap + total_recall_overlap) > 0 else 0
+
+        total_metrics_exact = {
+            "precision": total_precision_exact,
+            "recall": total_recall_exact,
+            "f1": total_f1_exact,
+            "tp": total_tp_exact,
+            "fp": total_fp_exact,
+            "fn": total_fn_exact,
+        }
+
+        total_metrics_overlap = {
+            "precision": total_precision_overlap,
+            "recall": total_recall_overlap,
+            "f1": total_f1_overlap,
+            "tp": total_tp_overlap,
+            "fp": total_fp_overlap,
+            "fn": total_fn_overlap,
+        }
+
         # Save overall results
         results.append({
             "extractor": extractor.name,
             "samples": len(dataset),
+            # Per-sample average
             "avg_precision_exact": avg_metrics_exact["precision"],
             "avg_recall_exact": avg_metrics_exact["recall"],
             "avg_f1_exact": avg_metrics_exact["f1"],
             "avg_precision_overlap": avg_metrics_overlap["precision"],
             "avg_recall_overlap": avg_metrics_overlap["recall"],
             "avg_f1_overlap": avg_metrics_overlap["f1"],
+            # Total aggregate (all entities)
+            "total_precision_exact": total_metrics_exact["precision"],
+            "total_recall_exact": total_metrics_exact["recall"],
+            "total_f1_exact": total_metrics_exact["f1"],
+            "total_precision_overlap": total_metrics_overlap["precision"],
+            "total_recall_overlap": total_metrics_overlap["recall"],
+            "total_f1_overlap": total_metrics_overlap["f1"],
+            # 4-quadrant classification
+            "total_tp_overlap": total_tp_overlap,
+            "total_fp_overlap": total_fp_overlap,
+            "total_fn_overlap": total_fn_overlap,
+            # Time
             "total_time_seconds": elapsed_time,
             "avg_time_per_sample": elapsed_time / len(dataset),
         })
 
         print(f"\nExtractor: {extractor.name}")
-        print(f"  Exact match:")
-        print(f"    Precision: {avg_metrics_exact['precision']:.4f}")
-        print(f"    Recall:    {avg_metrics_exact['recall']:.4f}")
-        print(f"    F1:        {avg_metrics_exact['f1']:.4f}")
-        print(f"  Overlap match:")
-        print(f"    Precision: {avg_metrics_overlap['precision']:.4f}")
-        print(f"    Recall:    {avg_metrics_overlap['recall']:.4f}")
-        print(f"    F1:        {avg_metrics_overlap['f1']:.4f}")
-        print(f"  Processing time: {elapsed_time:.2f}s ({elapsed_time/len(dataset):.3f}s/sample)")
+        print(f"\n  [Per-Sample Average]")
+        print(f"    Precision: {avg_metrics_overlap['precision']:.4f} ({avg_metrics_overlap['precision']*100:.2f}%)")
+        print(f"    Recall:    {avg_metrics_overlap['recall']:.4f} ({avg_metrics_overlap['recall']*100:.2f}%)")
+        print(f"    F1:        {avg_metrics_overlap['f1']:.4f} ({avg_metrics_overlap['f1']*100:.2f}%)")
+
+        print(f"\n  [Total Aggregate - All Entities]")
+        print(f"    Precision: {total_metrics_overlap['precision']:.4f} ({total_metrics_overlap['precision']*100:.2f}%)")
+        print(f"    Recall:    {total_metrics_overlap['recall']:.4f} ({total_metrics_overlap['recall']*100:.2f}%)")
+        print(f"    F1:        {total_metrics_overlap['f1']:.4f} ({total_metrics_overlap['f1']*100:.2f}%)")
+
+        print(f"\n  [4-Quadrant Classification]")
+        print(f"    True Positive (TP):  {total_tp_overlap} (Correctly identified)")
+        print(f"    False Positive (FP): {total_fp_overlap} (Incorrectly identified)")
+        print(f"    False Negative (FN): {total_fn_overlap} (Missed)")
+
+        print(f"\n  [Detection Metrics]")
+        print(f"    Identified entities: {total_tp_overlap + total_fp_overlap}")
+        print(f"    Correctly identified: {total_tp_overlap}")
+        print(f"    Identification rate (Recall): {total_metrics_overlap['recall']:.4f} ({total_metrics_overlap['recall']*100:.2f}%)")
+        print(f"    Correctness rate (Precision): {total_metrics_overlap['precision']:.4f} ({total_metrics_overlap['precision']*100:.2f}%)")
+
+        print(f"\n  [Processing Time]")
+        print(f"    Total: {elapsed_time:.2f}s")
+        print(f"    Avg/sample: {elapsed_time/len(dataset):.3f}s")
 
     # Output to Excel
     print(f"\n{'=' * 60}")
@@ -720,27 +883,40 @@ if __name__ == "__main__":
 
     # Print final comparison
     print("\n" + "=" * 80)
-    print("Final Comparison Results (Exact Match)")
+    print("Final Comparison Results - Per-Sample Average (Overlap Match)")
     print("=" * 80)
-    print(f"{'Extractor':<20} {'Precision':<12} {'Recall':<12} {'F1':<12} {'Time(s)':<12}")
+    print(f"{'Extractor':<25} {'Precision(%)':<15} {'Recall(%)':<15} {'F1(%)':<15} {'Time(s)':<12}")
     print("-" * 80)
 
     for result in results:
-        print(f"{result['extractor']:<20} "
-              f"{result['avg_precision_exact']:<12.4f} "
-              f"{result['avg_recall_exact']:<12.4f} "
-              f"{result['avg_f1_exact']:<12.4f} "
+        print(f"{result['extractor']:<25} "
+              f"{result['avg_precision_overlap']*100:<15.2f} "
+              f"{result['avg_recall_overlap']*100:<15.2f} "
+              f"{result['avg_f1_overlap']*100:<15.2f} "
               f"{result['total_time_seconds']:<12.2f}")
 
     print("\n" + "=" * 80)
-    print("Final Comparison Results (Overlap Match)")
+    print("Final Comparison Results - Total Aggregate (All Entities)")
     print("=" * 80)
-    print(f"{'Extractor':<20} {'Precision':<12} {'Recall':<12} {'F1':<12} {'Time(s)':<12}")
+    print(f"{'Extractor':<25} {'Precision(%)':<15} {'Recall(%)':<15} {'F1(%)':<15} {'Time(s)':<12}")
     print("-" * 80)
 
     for result in results:
-        print(f"{result['extractor']:<20} "
-              f"{result['avg_precision_overlap']:<12.4f} "
-              f"{result['avg_recall_overlap']:<12.4f} "
-              f"{result['avg_f1_overlap']:<12.4f} "
+        print(f"{result['extractor']:<25} "
+              f"{result['total_precision_overlap']*100:<15.2f} "
+              f"{result['total_recall_overlap']*100:<15.2f} "
+              f"{result['total_f1_overlap']*100:<15.2f} "
               f"{result['total_time_seconds']:<12.2f}")
+
+    print("\n" + "=" * 80)
+    print("4-Quadrant Classification Summary")
+    print("=" * 80)
+    print(f"{'Extractor':<25} {'TP':<10} {'FP':<10} {'FN':<10} {'Total Detected':<15}")
+    print("-" * 80)
+
+    for result in results:
+        print(f"{result['extractor']:<25} "
+              f"{result['total_tp_overlap']:<10} "
+              f"{result['total_fp_overlap']:<10} "
+              f"{result['total_fn_overlap']:<10} "
+              f"{result['total_tp_overlap'] + result['total_fp_overlap']:<15}")
