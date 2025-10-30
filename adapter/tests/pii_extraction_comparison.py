@@ -628,7 +628,7 @@ def run_comparison_test(
     # Initialize extractors - Focus on Regex, PII, LLM, and E2E
     extractors = [
         RegexExtractor(),
-        # PresidioExtractor(),
+        PresidioExtractor(),
     ]
 
     if use_llm and HAS_REQUESTS:
