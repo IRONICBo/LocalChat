@@ -1,13 +1,11 @@
-import sqlite3
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, BLOB
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine, event
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, BLOB, Boolean, JSON
+from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 DATABASE_URL = "sqlite:///localchat.db"
-engine = sqlite3.connect("localchat.db")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -31,16 +29,57 @@ class ProcessingStrategy(Base):
     strategy_name = Column(String(20), nullable=False)
 
 
+# Define the Session Info table
+class SessionInfo(Base):
+    __tablename__ = "session_info"
+
+    session_id = Column(String(36), primary_key=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = Column(String(100))
+    extra_info = Column(JSON)  # Changed from 'metadata' (reserved keyword)
+
+
+# Define the Conversation History table
+class ConversationHistory(Base):
+    __tablename__ = "conversation_history"
+
+    conversation_id = Column(String(36), primary_key=True)
+    session_id = Column(String(36), ForeignKey("session_info.session_id"), nullable=False)
+    role = Column(String(20), nullable=False)  # user, assistant, system
+    original_content = Column(Text, nullable=False)
+    masked_content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# Define the Mask Mapping table
+class MaskMapping(Base):
+    __tablename__ = "mask_mapping"
+
+    mapping_id = Column(String(36), primary_key=True)
+    session_id = Column(String(36), ForeignKey("session_info.session_id"), nullable=False)
+    conversation_id = Column(String(36), ForeignKey("conversation_history.conversation_id"))
+    entity_id = Column(String(36), ForeignKey("sensitive_entity.entity_id"), nullable=False)
+    placeholder = Column(String(100), nullable=False)  # e.g., ${EMAIL_001}
+    hash_value = Column(String(64), nullable=False)  # For quick lookup
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # Define the SensitiveEntity table
 class SensitiveEntity(Base):
     __tablename__ = "sensitive_entity"
 
     entity_id = Column(String(36), primary_key=True)
+    session_id = Column(String(36), ForeignKey("session_info.session_id"), nullable=False)
+    conversation_id = Column(String(36), ForeignKey("conversation_history.conversation_id"))
     text = Column(Text, nullable=False)
     start_pos = Column(Integer, nullable=False)
     end_pos = Column(Integer, nullable=False)
-    type_id = Column(Integer, nullable=False)
-    sensitivity = Column(Integer, nullable=False)
+    entity_type = Column(String(50), nullable=False)  # EMAIL, PHONE, CREDIT_CARD, etc.
+    type_id = Column(Integer, ForeignKey("privacy_type.type_id"))
+    sensitivity = Column(Integer, nullable=False, default=5)  # 1-10 scale
+    detection_method = Column(String(50))  # Regex, Presidio, LLM, E2E
+    confidence = Column(Float, default=1.0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
