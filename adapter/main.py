@@ -6,18 +6,24 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from uuid import uuid4
+import os
 
 from sqlalchemy.orm import Session
 from models import (
     SessionInfo, ConversationHistory, engine, Base
 )
 from pii_engine import PIIMaskEngine, PIIRecoverEngine
+from config import PIIConfig, DetectionStrategy
 
-# Configure logging to file and console
+# Configure logging
+log_level = getattr(logging, PIIConfig.LOG_LEVEL.upper(), logging.INFO)
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("llm_proxy.log"), logging.StreamHandler()],
+    level=log_level,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    handlers=[
+        logging.FileHandler(PIIConfig.LOG_FILE),
+        logging.StreamHandler()
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -25,16 +31,26 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 # Create a FastAPI application instance
-app = FastAPI(title="Enhanced LLM Proxy Server with PII Protection")
+app = FastAPI(
+    title="Enhanced LLM Proxy Server with PII Protection",
+    description="PII detection and masking proxy with support for multiple models and strategies",
+    version="2.0.0"
+)
 
-# Configure Ollama API endpoint
-OLLAMA_API_URL = "http://localhost:11434/api/chat"
+# Get configuration from environment or use defaults
+OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", f"{PIIConfig.OLLAMA_API_URL}/api/chat")
+PII_DETECTION_METHOD = PIIConfig.PII_DETECTION_METHOD
+DETECTION_STRATEGY = PIIConfig.DETECTION_STRATEGY
+DEFAULT_LLM_SIZE = PIIConfig.DEFAULT_LLM_SIZE
 
-# Default model configuration
-DEFAULT_MODEL = "qwen2:0.5b"
+# Get default model from config
+DEFAULT_MODEL_CONFIG = PIIConfig.get_llm_config(DEFAULT_LLM_SIZE)
+DEFAULT_MODEL = DEFAULT_MODEL_CONFIG["model"]
 
-# PII detection method: "Regex", "Presidio", "LLM", "E2E"
-PII_DETECTION_METHOD = "E2E"  # Default to E2E for best accuracy
+logger.info(f"Starting Enhanced LLM Proxy Server")
+logger.info(f"PII Detection Method: {PII_DETECTION_METHOD}")
+logger.info(f"Detection Strategy: {DETECTION_STRATEGY}")
+logger.info(f"Default LLM Model: {DEFAULT_MODEL} (size: {DEFAULT_LLM_SIZE})")
 
 
 # Dependency to get DB session
@@ -57,12 +73,14 @@ class Message(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """Represents a chat completion request"""
+    """Represents an enhanced chat completion request with PII protection options"""
     model: Optional[str] = None
     messages: List[Message]
     stream: Optional[bool] = False
     session_id: Optional[str] = None  # Optional session ID for continuity
     enable_pii_protection: Optional[bool] = True  # Enable/disable PII protection
+    detection_strategy: Optional[str] = None  # "high_recall", "balanced", "high_precision"
+    model_size: Optional[str] = None  # "tiny", "small", "medium", "large", "xlarge"
 
 
 class ChatResponse(BaseModel):
@@ -76,16 +94,30 @@ class ChatResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """Root endpoint with API information"""
+    """Root endpoint with API information and configuration"""
     return {
         "service": "Enhanced LLM Proxy Server with PII Protection",
-        "version": "1.0.0",
-        "pii_detection_method": PII_DETECTION_METHOD,
+        "version": "2.0.0",
+        "configuration": {
+            "pii_detection_method": PII_DETECTION_METHOD,
+            "detection_strategy": DETECTION_STRATEGY,
+            "default_model": DEFAULT_MODEL,
+            "default_model_size": DEFAULT_LLM_SIZE,
+            "available_strategies": ["high_recall", "balanced", "high_precision"],
+            "available_model_sizes": list(PIIConfig.LLM_MODEL_CONFIGS.keys()),
+            "features": {
+                "enhanced_regex": PIIConfig.ENABLE_ENHANCED_REGEX,
+                "few_shot_learning": PIIConfig.ENABLE_FEW_SHOT,
+                "chain_of_thought": PIIConfig.ENABLE_CHAIN_OF_THOUGHT,
+                "aggressive_json_cleaning": PIIConfig.ENABLE_AGGRESSIVE_JSON_CLEANING
+            }
+        },
         "endpoints": {
             "chat": "/api/chat",
             "health": "/health",
             "session": "/api/session/{session_id}",
-            "entities": "/api/session/{session_id}/entities"
+            "entities": "/api/session/{session_id}/entities",
+            "delete_session": "/api/session/{session_id}"
         }
     }
 
@@ -146,8 +178,16 @@ async def proxy_chat(request: ChatRequest, db: Session = Depends(get_db)):
             db.commit()
             logger.info(f"[{request_id}] Using existing session: {session_id}")
 
-        # Initialize PII engines
-        mask_engine = PIIMaskEngine(db, detection_method=PII_DETECTION_METHOD)
+        # Initialize PII engines with user-specified or default configuration
+        detection_strategy = request.detection_strategy or DETECTION_STRATEGY
+        model_size = request.model_size or DEFAULT_LLM_SIZE
+
+        mask_engine = PIIMaskEngine(
+            db,
+            detection_method=PII_DETECTION_METHOD,
+            strategy=detection_strategy,
+            model_size=model_size
+        )
         recover_engine = PIIRecoverEngine(db)
 
         # Process messages to mask PII
