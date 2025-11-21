@@ -26,7 +26,13 @@ class ProcessingStrategy(Base):
     __tablename__ = "processing_strategy"
 
     strategy_id = Column(Integer, primary_key=True, autoincrement=True)
-    strategy_name = Column(String(20), nullable=False)
+    strategy_name = Column(String(50), nullable=False)
+    strategy_type = Column(String(20), nullable=False, default='mask')  # mask, recover
+    method = Column(String(50), nullable=False, default='placeholder')  # placeholder, fake_entity, hash, encrypt
+    config_json = Column(JSON)  # Strategy configuration (JSON format)
+    reversible = Column(Boolean, default=True)  # Whether the strategy is reversible
+    entity_types = Column(JSON)  # Applicable entity types (JSON list)
+    description = Column(Text)  # Strategy description
 
 
 # Define the Session Info table
@@ -62,6 +68,10 @@ class MaskMapping(Base):
     entity_id = Column(String(36), ForeignKey("sensitive_entity.entity_id"), nullable=False)
     placeholder = Column(String(100), nullable=False)  # e.g., ${EMAIL_001}
     hash_value = Column(String(64), nullable=False)  # For quick lookup
+    # Extended fields for multi-strategy support
+    masking_strategy = Column(String(50), nullable=False, default='placeholder')  # placeholder, fake_entity, hash, encrypt
+    fake_value = Column(String(200))  # Fake entity value (e.g., "张三", "john@example.com")
+    original_hash = Column(String(64))  # Hash of original value for consistency lookup
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
