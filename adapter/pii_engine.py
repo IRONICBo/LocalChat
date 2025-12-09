@@ -837,6 +837,129 @@ class PIIMaskEngine:
         }
         return sensitivity_map.get(entity_type, 5)
 
+    def mask_text_with_entities(
+        self,
+        text: str,
+        entities: List[Dict],
+        session_id: str,
+        conversation_id: Optional[str] = None
+    ) -> Tuple[str, List[Dict]]:
+        """
+        Mask PII entities in text using pre-extracted entities.
+
+        This method is used for chunked processing where entities have already
+        been extracted and merged from multiple chunks.
+
+        Args:
+            text: Original text
+            entities: Pre-extracted entities list
+            session_id: Session ID
+            conversation_id: Optional conversation ID
+
+        Returns:
+            Tuple of (masked_text, entities_info)
+        """
+        start_time = datetime.utcnow()
+
+        if not entities:
+            return text, []
+
+        # Sort entities by position (reverse order for replacement)
+        sorted_entities = sorted(entities, key=lambda x: x.get("start", 0), reverse=True)
+
+        # Track entities info
+        entities_info = []
+        masked_text = text
+
+        # Replace entities with placeholders
+        for entity in sorted_entities:
+            # Validate entity positions
+            start = entity.get("start", 0)
+            end = entity.get("end", 0)
+
+            if start < 0 or end > len(text) or start >= end:
+                logger.warning(f"Invalid entity position: start={start}, end={end}, text_len={len(text)}")
+                continue
+
+            # Generate placeholder
+            entity_type = entity.get("entity_type", "UNKNOWN")
+            self.entity_counters[entity_type] += 1
+            placeholder = self.placeholder_template.format(
+                entity_type=entity_type,
+                index=self.entity_counters[entity_type]
+            )
+
+            # Get entity value from text if not provided
+            entity_value = entity.get("entity_value", text[start:end])
+
+            # Generate unique IDs
+            entity_id = str(uuid4())
+            mapping_id = str(uuid4())
+            hash_value = hashlib.sha256(entity_value.encode()).hexdigest()
+
+            # Replace in text
+            masked_text = (
+                masked_text[:start] +
+                placeholder +
+                masked_text[end:]
+            )
+
+            # Store entity in database
+            sensitive_entity = SensitiveEntity(
+                entity_id=entity_id,
+                session_id=session_id,
+                conversation_id=conversation_id,
+                text=entity_value,
+                start_pos=start,
+                end_pos=end,
+                entity_type=entity_type,
+                sensitivity=self._calculate_sensitivity(entity_type),
+                detection_method=self.detection_method,
+                confidence=entity.get("confidence", 1.0),
+                created_at=datetime.utcnow()
+            )
+            self.db.add(sensitive_entity)
+
+            # Store mask mapping
+            mask_mapping = MaskMapping(
+                mapping_id=mapping_id,
+                session_id=session_id,
+                conversation_id=conversation_id,
+                entity_id=entity_id,
+                placeholder=placeholder,
+                hash_value=hash_value,
+                created_at=datetime.utcnow()
+            )
+            self.db.add(mask_mapping)
+
+            # Track info
+            entities_info.append({
+                "entity_id": entity_id,
+                "entity_type": entity_type,
+                "entity_value": entity_value,
+                "placeholder": placeholder,
+                "start": start,
+                "end": end,
+                "confidence": entity.get("confidence", 1.0)
+            })
+
+        # Commit to database
+        self.db.commit()
+
+        # Log processing
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        log = ProcessingLog(
+            log_id=str(uuid4()),
+            processing_time=processing_time,
+            created_at=datetime.utcnow()
+        )
+        self.db.add(log)
+        self.db.commit()
+
+        logger.info(f"Masked {len(entities_info)} pre-extracted entities in {processing_time:.3f}s")
+
+        return masked_text, entities_info
+
 
 class PIIRecoverEngine:
     """
