@@ -23,10 +23,24 @@ class DetectionStrategy(str, Enum):
 class PIIConfig:
     """Configuration for PII Detection System"""
 
-    # ==================== LLM Configuration ====================
+    # ==================== LLM Backend Configuration ====================
 
-    # Ollama API settings
+    # LLM Backend type: "ollama" or "openai"
+    LLM_BACKEND = os.getenv("LLM_BACKEND", "openai")
+
+    # Ollama API settings (legacy, kept for backward compatibility)
     OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434")
+
+    # OpenAI-compatible API settings
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-123456")
+    OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "http://0.0.0.0:23333/v1")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "internlm/internlm2-chat-1_8b")
+
+    # Chat completions endpoint (auto-constructed if not provided)
+    OPENAI_CHAT_ENDPOINT = os.getenv(
+        "OPENAI_CHAT_ENDPOINT",
+        f"{OPENAI_API_BASE}/chat/completions" if not OPENAI_API_BASE.endswith("/chat/completions") else OPENAI_API_BASE
+    )
 
     # Model configurations for different scenarios
     # Recommended models by size and use case:
